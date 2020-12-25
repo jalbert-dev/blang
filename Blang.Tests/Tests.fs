@@ -52,6 +52,24 @@ module LexerTests =
                 | _ -> false @>
         rest
 
+    let expectString expected lexer =
+        let result = lexer |> next
+        test <@ checkOk result @>
+        let (token, rest) = unwrapOk result
+        test <@ match token.Type with
+                | String actual -> actual = expected 
+                | _ -> false @>
+        rest
+
+    let expectSymbol expected lexer =
+        let result = lexer |> next
+        test <@ checkOk result @>
+        let (token, rest) = unwrapOk result
+        test <@ match token.Type with
+                | Symbol actual -> actual = expected 
+                | _ -> false @>
+        rest
+
     let expectError error line character lexer =
         let result = lexer |> next
         test <@ checkError result @>
@@ -160,13 +178,14 @@ module LexerTests =
 
     [<Fact>]
     let ``floating-pointing values lex as numbers`` =
-        Prop.forAll
-            (Arb.Default.NormalFloat())
-            (fun (NormalFloat x) -> 
-                sprintf "%g" x
-                |> create
-                |> expectApproxNum x
-                |> ignore)
+        Check.QuickThrowOnFailure
+            (Prop.forAll
+                (Arb.Default.NormalFloat())
+                (fun (NormalFloat x) -> 
+                    sprintf "%g" x
+                    |> create
+                    |> expectApproxNum x
+                    |> ignore))
 
     [<Fact>]
     let ``standalone minus lexes as symbol`` () =
@@ -221,7 +240,59 @@ module LexerTests =
         create str
         |> expectError (UnexpectedCharacter '.') line column
 
-    // TODO: also need fuzzing test to make sure any string not containing not-escaped " is valid
+    let fuzzStringCharaSet =
+        Gen.elements (seq {
+            for c in ' '..'!' -> string c
+            for c in '#'..'~' -> string c
+            for c in [| '\t'; '\r'; '\n'; '\n'; '\n'; '\n'; '\n'; '\n' |] -> string c
+            for i in [0x1F913..0x1F937] -> System.Char.ConvertFromUtf32(i)
+            for i in [0x3041..0x3060] -> System.Char.ConvertFromUtf32(i)
+        })
+    let fuzzSymbolCharaSet =
+        fuzzStringCharaSet 
+        |> Gen.filter (fun str ->
+            not <| List.contains str [
+                " "; "\r"; "\t"; "\n";
+                "'"; "."; "("; ")"; "\""; "#";
+            ])
+    let fuzzSymbolStarterCharaSet =
+        fuzzSymbolCharaSet
+        |> Gen.filter (fun str ->
+            not <| Seq.contains str (seq { for c in '0'..'9' -> string c }))
+
+    [<Fact>]
+    let ``any unicode string not containing unescaped double quotes is valid`` () =
+        Check.QuickThrowOnFailure
+            (Prop.forAll
+                ((gen {
+                    let! length = Gen.choose(0, 1200)
+                    let! fuzzString = Gen.arrayOfLength length fuzzStringCharaSet
+                    return fuzzString |> String.concat ""
+                })
+                    |> Arb.fromGen)
+                (fun str ->
+                    sprintf "\"%s\"" str
+                    |> create
+                    |> expectString str
+                    |> ignore))
+
+    [<Fact>]
+    let ``any unicode symbol name not containing whitespace or reserved characters is valid`` () =
+        Check.QuickThrowOnFailure
+            (Prop.forAll
+                ((gen {
+                    let! length = Gen.choose(0, 96)
+                    let! startChar = fuzzSymbolStarterCharaSet
+                    let! remaining = Gen.listOfLength length fuzzSymbolCharaSet
+                    return (startChar :: remaining) |> String.concat ""
+                })
+                    |> Arb.fromGen)
+                (fun str ->
+                    printfn "%s" str
+                    create str
+                    |> expectSymbol str
+                    |> ignore))
+                
 
     // [<Property>]
     // let ``parse of number must result in Num with parsed value`` (x: double) =
