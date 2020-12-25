@@ -2,6 +2,7 @@ namespace Blang
 
 module LexerTests =
     open Xunit
+    open FsCheck
     open FsCheck.Xunit
 
     open Swensen.Unquote
@@ -34,12 +35,21 @@ module LexerTests =
     let unwrapOk = function | Ok x -> x | _ -> failwith ""
     let unwrapError = function | Error x -> x | _ -> failwith ""
 
-    let expectToken value line character lexer =
+    let expectToken expected line character lexer =
         let result = lexer |> next
         test <@ checkOk result @>
         let (token, rest) = unwrapOk result
-        test <@ token.Type = value @>
+        test <@ token.Type = expected @>
         test <@ token.Position = { Line = line; Character = character } @>
+        rest
+
+    let expectApproxNum expected lexer =
+        let result = lexer |> next
+        test <@ checkOk result @>
+        let (token, rest) = unwrapOk result
+        test <@ match token.Type with 
+                | Number actual -> (actual - expected |> abs) < 0.0001
+                | _ -> false @>
         rest
 
     let expectError error line character lexer =
@@ -147,6 +157,69 @@ module LexerTests =
         create "\"hello. this is dog?\nhello dog. this is not dog.\noh no.\""
         |> expectToken (String "hello. this is dog?\nhello dog. this is not dog.\noh no.") 1 1
         |> expectToken EOF 3 8
+
+    [<Fact>]
+    let ``floating-pointing values lex as numbers`` =
+        Prop.forAll
+            (Arb.Default.NormalFloat())
+            (fun (NormalFloat x) -> 
+                sprintf "%g" x
+                |> create
+                |> expectApproxNum x
+                |> ignore)
+
+    [<Fact>]
+    let ``standalone minus lexes as symbol`` () =
+        create "  -  "
+        |> expectToken (Symbol "-") 1 3
+        |> expectToken EOF 1 6
+    
+    [<Fact>]
+    let ``minus before digit lexes as number`` () =
+        create "  -2 "
+        |> expectApproxNum -2.0
+
+    [<Fact>]
+    let ``minus dot is invalid number and errors at numerical part`` () =
+        create "-."
+        |> expectError InvalidNumber 1 2
+
+    [<Fact>]
+    let ``solitary dot is invalid number`` () =
+        create "."
+        |> expectError InvalidNumber 1 1
+
+    [<Fact>]
+    let ``dot digit is valid number`` () =
+        create ".5"
+        |> expectApproxNum 0.5
+    
+    [<Fact>]
+    let ``negative dot digit is valid number`` () =
+        create "-.5"
+        |> expectApproxNum -0.5
+
+    [<Fact>]
+    let ``digit dot is valid number`` () =
+        create "1."
+        |> expectApproxNum 1.0
+
+    [<Fact>]
+    let ``negative digit dot is valid number`` () =
+        create "-1."
+        |> expectApproxNum -1.0
+
+    [<Theory>]
+    [<InlineData("1..0", 1, 3)>]
+    [<InlineData("1.0.", 1, 4)>]
+    [<InlineData("1.0.0", 1, 4)>]
+    [<InlineData("..1.0", 1, 2)>]
+    [<InlineData(".1.0", 1, 3)>]
+    [<InlineData("-.1.0", 1, 4)>]
+    [<InlineData("-..1.0", 1, 3)>]
+    let ``multiple decimal points is unexpected character`` str line column =
+        create str
+        |> expectError (UnexpectedCharacter '.') line column
 
     // TODO: also need fuzzing test to make sure any string not containing not-escaped " is valid
 
