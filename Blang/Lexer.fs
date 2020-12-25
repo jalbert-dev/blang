@@ -37,6 +37,8 @@ module Lexer =
         isNewline c || List.contains c [' '; '\r'; '\t']
     let private isNumeric c =
         c >= '0' && c <= '9'
+    let private isDecimal c =
+        c = '.'
     let private isStringDelimiter c =
         c = '"'
     let private isValidSymbolChar c =
@@ -69,6 +71,8 @@ module Lexer =
     let inline private ifTrueThen value f = if f then Some value else None
     let private (|LexerFinished|_|) lexer =
         (atEof lexer) |> ifTrueThen lexer
+    let private (|PeekBy|_|) f lexer =
+        (lexer |> currentChar |> f) |> ifTrueThen lexer
     let private (|MatchBy|_|) f lexer =
         (lexer |> currentChar |> f) |> ifTrueThen (moveNext lexer)
     let private (|MatchChar|_|) c lexer =
@@ -83,12 +87,19 @@ module Lexer =
         | MatchAny rest -> rest |> eatLine
 
     let private lexString lex =
-        let startIdx = lex.Index
         let rec loop = function
             | LexerFinished _ -> Error (createError lex UnterminatedString)
-            | MatchBy(isStringDelimiter) rest -> Ok (String rest.Source.[startIdx + 1..rest.Index - 2], rest)
+            | MatchBy(isStringDelimiter) rest -> Ok (String rest.Source.[lex.Index + 1..rest.Index - 2], rest)
             | MatchAny rest -> loop rest
         lex |> moveNext |> loop
+
+    let private lexSymbol lex =
+        let isInvalidSymbolChar = isValidSymbolChar >> not
+        let rec loop = function
+            | LexerFinished rest -> Ok (Symbol rest.Source.[lex.Index..rest.Index - 1], rest)
+            | PeekBy(isInvalidSymbolChar) rest -> Ok (Symbol rest.Source.[lex.Index..rest.Index - 1], rest)
+            | MatchAny rest -> loop rest
+        lex |> loop
 
     let create (sourceString: string) =
         { Source = sourceString
@@ -109,7 +120,7 @@ module Lexer =
         | MatchChar('\'') rest -> rest |> emit SingleQuote lexer.Position
         | MatchChar('#') rest -> rest |> eatLine |> next
         | MatchBy(isWhitespace) rest -> rest |> next
-        | MatchBy(isStringDelimiter) _ -> lexer |> lexString >>= emitFromTuple lexer.Position
-        //| c when isNumeric c -> str |> lexNumeric
-        //| c when isValidSymbolStarter c -> str |> lexSymbol
+        | PeekBy(isStringDelimiter) rest -> rest |> lexString >>= emitFromTuple lexer.Position
+        //| PeekBy(isNumeric) rest -> rest |> lexNumeric >>= emitFromTuple lexer.Position
+        | PeekBy(isValidSymbolStarter) rest -> rest |> lexSymbol >>= emitFromTuple lexer.Position
         | CaptureAny (_, c) -> c |> UnexpectedCharacter |> createError lexer |> Error
