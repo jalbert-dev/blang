@@ -11,57 +11,54 @@ let checkError = function | Error _ -> true | Ok _ -> false
 let unwrapOk = function | Ok x -> x | _ -> failwith ""
 let unwrapError = function | Error x -> x | _ -> failwith ""
 
-let expectToken expected line character lexer =
+let expectOkLex lexer =
     let result = lexer |> next
     test <@ checkOk result @>
-    let (token, rest) = unwrapOk result
+    unwrapOk result
+
+let expectErrorLex lexer =
+    let result = lexer |> next
+    test <@ checkError result @>
+    unwrapError result
+
+let expectToken expected line character lexer =
+    let (token, rest) = expectOkLex lexer
     test <@ token.Type = expected @>
     test <@ token.Position = { Line = line; Character = character } @>
     rest
 
 let expectApproxNum expected lexer =
-    let result = lexer |> next
-    test <@ checkOk result @>
-    let (token, rest) = unwrapOk result
+    let (token, rest) = expectOkLex lexer
     test <@ match token.Type with 
             | Number actual -> (actual - expected |> abs) < 0.0001
             | _ -> false @>
     rest
 
 let expectString expected lexer =
-    let result = lexer |> next
-    test <@ checkOk result @>
-    let (token, rest) = unwrapOk result
+    let (token, rest) = expectOkLex lexer
     test <@ match token.Type with
             | String actual -> actual = expected 
             | _ -> false @>
     rest
 
 let expectSymbol expected lexer =
-    let result = lexer |> next
-    test <@ checkOk result @>
-    let (token, rest) = unwrapOk result
+    let (token, rest) = expectOkLex lexer
     test <@ match token.Type with
             | Symbol actual -> actual = expected 
             | _ -> false @>
     rest
 
 let expectTokenType expected lexer =
-    let result = lexer |> next
-    test <@ checkOk result @>
-    let (token, rest) = unwrapOk result
+    let (token, rest) = expectOkLex lexer
     test <@ token.Type = expected @>
     rest
 
 let expectError error line character lexer =
-    let result = lexer |> next
-    test <@ checkError result @>
-    test <@ unwrapError result = { Type = error; Position = { Line = line; Character = character } } @>
+    let result = expectErrorLex lexer
+    test <@ result = { Type = error; Position = { Line = line; Character = character } } @>
 
 let expectErrorType errorType lexer =
-    let result = lexer |> next
-    test <@ checkError result @>
-    let err = unwrapError result
+    let err = expectErrorLex lexer
     test <@ errorType = err.Type @>
 
 let expectPosition line character (lexer: LexState) =
