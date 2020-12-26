@@ -3,6 +3,8 @@
     <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="ParserTypes.fs" />
     <Compile Include="Lexer.fs" />
     <Compile Include="Sexpr.fs" />
   </ItemGroup>
