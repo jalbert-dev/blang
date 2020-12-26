@@ -4,6 +4,7 @@ open Xunit
 open FsCheck
 open Swensen.Unquote
 open Blang.Lexer
+open Blang.ParserTypes
 
 let checkOk = function | Ok _ -> true | _ -> false
 let checkError = function | Error _ -> true | Ok _ -> false
@@ -45,10 +46,23 @@ let expectSymbol expected lexer =
             | _ -> false @>
     rest
 
+let expectTokenType expected lexer =
+    let result = lexer |> next
+    test <@ checkOk result @>
+    let (token, rest) = unwrapOk result
+    test <@ token.Type = expected @>
+    rest
+
 let expectError error line character lexer =
     let result = lexer |> next
     test <@ checkError result @>
     test <@ unwrapError result = { Type = error; Position = { Line = line; Character = character } } @>
+
+let expectErrorType errorType lexer =
+    let result = lexer |> next
+    test <@ checkError result @>
+    let err = unwrapError result
+    test <@ errorType = err.Type @>
 
 let expectPosition line character (lexer: LexState) =
     test <@ lexer.Position = { Line = line; Character = character } @>
@@ -125,9 +139,9 @@ let ``symbol completion char when lexing symbol is symbol completion`` str =
     |> expectPosition 1 14
 
 [<Fact>]
-let ``arbitrary numbers and special characters are allowed in symbols`` () =
-    create "special!-symbol1.2.3.4550@$#,G0"
-    |> expectToken (Symbol "special!-symbol1.2.3.4550@$#,G0") 1 1
+let ``arbitrary numbers and most special characters are allowed in symbols`` () =
+    create "special!-symbol1.2.3.4550@$,G0"
+    |> expectToken (Symbol "special!-symbol1.2.3.4550@$,G0") 1 1
 
 [<Theory>]
 [<InlineData("あぁ　アァ　（・ω・）　ののの")>]
@@ -174,7 +188,7 @@ let ``minus before digit lexes as number`` () =
     |> expectApproxNum -2.0
 
 [<Fact>]
-let ``minus dot is invalid number and errors at numerical part`` () =
+let ``minus dot is invalid number and lineinfo points to numerical part`` () =
     create "-."
     |> expectError InvalidNumber 1 2
 
@@ -235,16 +249,39 @@ let fuzzSymbolStarterCharaSet =
     |> Gen.filter (fun str ->
         not <| Seq.contains str (seq { for c in '0'..'9' -> string c }))
 
+let fuzzStringGen minLength maxLength =
+    gen {
+        let! length = Gen.choose(minLength, maxLength)
+        let! fuzzString = Gen.arrayOfLength length fuzzStringCharaSet
+        return fuzzString |> String.concat ""
+    }
+let fuzzStringArb minLength maxLength = fuzzStringGen minLength maxLength |> Arb.fromGen
+
+// note that a symbol must have at least one character, unlike strings.
+// so length determines number of trailing characters instead
+// also aggravating: leading minus is allowed in symbol names, but if that
+// minus is there, a numeric digit immediately after will result in a number parse!
+// so the fuzzer will reject digits in 2nd spot if first char is '-'
+let fuzzSymbolGen minLength maxLength =
+    let noWackyDigits (str: string) = str.[0] < '0' || str.[0] > '9'
+    gen {
+        let! length = Gen.choose(minLength, maxLength)
+        let! startChar = fuzzSymbolStarterCharaSet
+        let! secondChar = 
+            if startChar = "-" then
+                Gen.filter noWackyDigits fuzzSymbolCharaSet
+            else
+                fuzzSymbolCharaSet
+        let! remaining = Gen.listOfLength (length - 1) fuzzSymbolCharaSet
+        return (startChar :: secondChar :: remaining) |> String.concat ""
+    }
+let fuzzSymbolArb minLength maxLength = fuzzSymbolGen minLength maxLength |> Arb.fromGen
+
 [<Fact>]
 let ``any unicode string not containing unescaped double quotes is valid`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
-            ((gen {
-                let! length = Gen.choose(0, 1200)
-                let! fuzzString = Gen.arrayOfLength length fuzzStringCharaSet
-                return fuzzString |> String.concat ""
-            })
-                |> Arb.fromGen)
+            (fuzzStringArb 0 1200)
             (fun str ->
                 sprintf "\"%s\"" str
                 |> create
@@ -255,17 +292,191 @@ let ``any unicode string not containing unescaped double quotes is valid`` () =
 let ``any unicode symbol name not containing whitespace or reserved characters is valid`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
-            ((gen {
-                let! length = Gen.choose(0, 96)
-                let! startChar = fuzzSymbolStarterCharaSet
-                let! remaining = Gen.listOfLength length fuzzSymbolCharaSet
-                return (startChar :: remaining) |> String.concat ""
-            })
-                |> Arb.fromGen)
+            (fuzzSymbolArb 0 96)
             (fun str ->
-                printfn "%s" str
                 create str
                 |> expectSymbol str
                 |> ignore))
 
-// need to test cases of adjacent tokens; eg. "2.0froglet" or "scumbo11.0" or "symbol\"string\""
+[<Fact>]
+let ``symbol on adjacent right of number lexes as number followed by symbol`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (Arb.fromGen 
+                (gen {
+                    let! (NormalFloat num) = Arb.Default.NormalFloat().Generator
+                    let! sym = fuzzSymbolGen 0 24
+                    return (sprintf "%g%s" num sym, num, sym)
+                }))
+            (fun (str, expectedNum, expectedSym) ->
+                create str
+                |> expectApproxNum expectedNum
+                |> expectSymbol expectedSym
+                |> ignore))
+
+[<Fact>]
+let ``number on adjacent right of symbol lexes as symbol`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (Arb.fromGen 
+                (gen {
+                    let! (NormalFloat num) = Arb.Default.NormalFloat().Generator
+                    let! sym = fuzzSymbolGen 0 24
+                    return sprintf "%s%g" sym num
+                }))
+            (fun str ->
+                create str
+                |> expectSymbol str
+                |> ignore))
+
+[<Fact>]
+let ``string on adjacent right of symbol lexes as symbol followed by string`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (Arb.fromGen 
+                (gen {
+                    let! str = fuzzStringGen 0 120
+                    let! sym = fuzzSymbolGen 0 24
+                    return (sprintf "%s\"%s\"" sym str, str, sym)
+                }))
+            (fun (str, expectedStr, expectedSym) ->
+                create str
+                |> expectSymbol expectedSym
+                |> expectString expectedStr
+                |> ignore))
+
+[<Fact>]
+let ``symbol on adjacent right of string lexes as string followed by symbol`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (Arb.fromGen 
+                (gen {
+                    let! str = fuzzStringGen 0 120
+                    let! sym = fuzzSymbolGen 0 24
+                    return (sprintf "\"%s\"%s" str sym, str, sym)
+                }))
+            (fun (str, expectedStr, expectedSym) ->
+                create str
+                |> expectString expectedStr
+                |> expectSymbol expectedSym
+                |> ignore))
+
+[<Fact>]
+let ``number on adjacent right of string lexes as string followed by number`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (Arb.fromGen 
+                (gen {
+                    let! (NormalFloat num) = Arb.Default.NormalFloat().Generator
+                    let! str = fuzzStringGen 0 120
+                    return (sprintf "\"%s\"%g" str num, num, str)
+                }))
+            (fun (str, expectedNum, expectedStr) ->
+                create str
+                |> expectString expectedStr
+                |> expectApproxNum expectedNum
+                |> ignore))
+
+[<Fact>]
+let ``string on adjacent right of number lexes as number followed by string`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (Arb.fromGen 
+                (gen {
+                    let! (NormalFloat num) = Arb.Default.NormalFloat().Generator
+                    let! str = fuzzStringGen 0 120
+                    return (sprintf "%g\"%s\"" num str, num, str)
+                }))
+            (fun (str, expectedNum, expectedStr) ->
+                create str
+                |> expectApproxNum expectedNum
+                |> expectString expectedStr
+                |> ignore))
+
+[<Fact>]
+let ``comment on adjacent right to symbol is ignored`` () =
+    create "symbol#this is a comment!"
+    |> expectSymbol "symbol"
+    |> expectTokenType EOF
+
+[<Fact>]
+let ``comment on adjacent right to string is ignored`` () =
+    create "\"string\"#this is a comment!"
+    |> expectString "string"
+    |> expectTokenType EOF
+
+[<Fact>]
+let ``comment on adjacent right to number is ignored`` () =
+    create "1.305#this is a comment!"
+    |> expectApproxNum 1.305
+    |> expectTokenType EOF
+
+[<Theory>]
+[<InlineData("\"This is a string\"")>]
+[<InlineData("(")>]
+[<InlineData(")")>]
+[<InlineData("'(")>]
+[<InlineData("# comments shouldn't matter but what the hey! test cases are free")>]
+let ``minus on adjacent left of non-number lexes as symbol`` str =
+    sprintf "-%s" str |> create |> expectSymbol "-"
+
+[<Fact>]
+let ``minus on adjacent left of symbol is part of that symbol`` () =
+    create "-merged-symbol!" |> expectSymbol "-merged-symbol!"
+
+[<Fact>]
+let ``negative number on adjacent left of symbol lexes as number then symbol`` () =
+    create "-9Wv0m" |> expectApproxNum -9.0 |> expectSymbol "Wv0m"
+
+[<Fact>]
+let ``period followed by symbol is invalid number`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (fuzzSymbolArb 0 24)
+            (fun str ->
+                sprintf ".%s" str
+                |> create
+                |> expectErrorType InvalidNumber
+                |> ignore))
+
+[<Fact>]
+let ``period followed by string is invalid number`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (fuzzStringArb 0 24)
+            (fun str ->
+                sprintf ".\"%s\"" str
+                |> create
+                |> expectErrorType InvalidNumber
+                |> ignore))
+
+[<Theory>]
+[<InlineData("'")>]
+[<InlineData("(")>]
+[<InlineData(")")>]
+let ``period followed by reserved character is invalid number`` str =
+    sprintf ".%s" str
+    |> create
+    |> expectErrorType InvalidNumber
+
+[<Fact>]
+let ``consecutive periods is unexpected character`` () =
+    create "..." |> expectErrorType (UnexpectedCharacter '.')
+
+
+[<Fact>]
+let ``test case: simple s-expression`` () =
+    create "(bind-function fib '(n) -5.01 (\"don't forget me\"))"
+    |> expectTokenType LParen
+    |> expectSymbol "bind-function"
+    |> expectSymbol "fib"
+    |> expectTokenType SingleQuote
+    |> expectTokenType LParen
+    |> expectSymbol "n"
+    |> expectTokenType RParen
+    |> expectApproxNum -5.01
+    |> expectTokenType LParen
+    |> expectString "don't forget me"
+    |> expectTokenType RParen
+    |> expectTokenType RParen
+    |> expectTokenType EOF
