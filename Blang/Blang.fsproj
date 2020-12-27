@@ -6,6 +6,7 @@
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="ParserTypes.fs" />
     <Compile Include="Lexer.fs" />
-    <Compile Include="Sexpr.fs" />
+    <Compile Include="Value.fs" />
+    <Compile Include="Scope.fs" />
   </ItemGroup>
 </Project>

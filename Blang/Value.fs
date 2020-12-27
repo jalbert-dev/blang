@@ -1,4 +1,4 @@
-module Blang.Expression
+module Blang.Value
 
 open RuntimeTypes
 
