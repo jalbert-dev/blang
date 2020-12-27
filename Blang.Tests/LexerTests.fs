@@ -460,6 +460,17 @@ let ``period followed by reserved character is invalid number`` str =
 let ``consecutive periods is unexpected character`` () =
     create "..." |> expectErrorType (UnexpectedCharacter '.')
 
+[<Fact>]
+let ``adjacent strings lex as multiple strings`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll 
+            (fuzzStringGen 0 24 |> Gen.two |> Arb.fromGen)
+            (fun (a, b) ->
+                sprintf "\"%s\"\"%s\"" a b
+                |> create
+                |> expectString a
+                |> expectString b
+                |> ignore))
 
 [<Fact>]
 let ``test case: simple s-expression`` () =
