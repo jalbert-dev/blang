@@ -22,11 +22,17 @@ type LexState =
       Index: int 
       Position: LineInfo }
 
-type LexErrorType =
+type EvalErrorType =
+    // syntax errors
     | UnterminatedString
     | UnexpectedCharacter of char
     | InvalidNumber
 
-type LexError =
-    { Type: LexErrorType
+    // parse errors
+    | UnexpectedEOF
+    | UnexpectedCloseExpression
+    | ExpectedExpression
+
+type EvalError =
+    { Type: EvalErrorType
       Position: LineInfo }

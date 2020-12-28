@@ -40,8 +40,8 @@ let private moveNext lexer =
                     { lexer.Position with Character = lexer.Position.Character + 1 } }
 let private createToken (pos: LineInfo) (tokType: TokenType) =
     { Token.Type = tokType; Position = pos }
-let private createError (lexer: LexState) (errType: LexErrorType) =
-    ({ LexError.Type = errType; Position = lexer.Position })
+let private createError (lexer: LexState) (errType: EvalErrorType) =
+    ({ EvalError.Type = errType; Position = lexer.Position })
 
 // Lexer active patterns
 let inline private ifTrueThen value f = if f then Some value else None
@@ -116,7 +116,7 @@ let private lexAmbiguousMinus atMinusState =
     // "-[_]" = start of symbol
     | _ -> lexSymbol  atMinusState
 
-let rec next (lexer: LexState) : Result<Token * LexState, LexError> =
+let rec next (lexer: LexState) : Result<Token * LexState, EvalError> =
     let emit tok pos next = (createToken pos tok, next) |> Ok
     let emitFromTuple pos (tok, next) = emit tok pos next
     let ( >>= ) a b = Result.bind b a

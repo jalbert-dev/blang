@@ -8,5 +8,6 @@
     <Compile Include="Lexer.fs" />
     <Compile Include="Value.fs" />
     <Compile Include="Scope.fs" />
+    <Compile Include="Evaluator.fs" />
   </ItemGroup>
 </Project>
