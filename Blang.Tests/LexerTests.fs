@@ -64,51 +64,41 @@ let expectErrorType errorType lexer =
 let expectPosition line character (lexer: LexState) =
     test <@ lexer.Position = { Line = line; Character = character } @>
 
-[<Fact>] 
-let ``empty lex is always EOF`` () =
+let [<Fact>] ``empty lex is always EOF`` () =
     create "" |> expectToken EOF 1 1
 
-[<Fact>] 
-let ``multiple lex at EOF always returns an EOF without moving lexer`` () =
+let [<Fact>] ``multiple lex at EOF always returns an EOF without moving lexer`` () =
     create "" |> expectToken EOF 1 1 |> expectToken EOF 1 1 |> expectToken EOF 1 1
 
-[<Fact>]
-let ``reserved symbols lex to their token equivalents`` () =
+let [<Fact>] ``reserved symbols lex to their token equivalents`` () =
     let expect str tokType = str |> create |> expectToken tokType 1 1 |> expectToken EOF 1 2 |> ignore
     expect "'" SingleQuote
     expect "(" LParen
     expect ")" RParen
 
-[<Fact>]
-let ``whitespace is ignored`` () =
+let [<Fact>] ``whitespace is ignored`` () =
     create "    \t  \n \r\n\t" |> expectToken EOF 3 2
 
-[<Fact>]
-let ``comment character causes rest of line to be ignored`` () =
+let [<Fact>] ``comment character causes rest of line to be ignored`` () =
     create "# this is a comment line (+ 3 4 '(hello 34))\n" |> expectToken EOF 2 1
 
-[<Fact>]
-let ``empty string lex to empty string token`` () =
+let [<Fact>] ``empty string lex to empty string token`` () =
     create "\"\"" |> expectToken (String "") 1 1 |> expectToken EOF 1 3
 
-[<Fact>]
-let ``unterminated string lexes to error`` () =
+let [<Fact>] ``unterminated string lexes to error`` () =
     create "\"" |> expectError UnterminatedString 1 1
 
-[<Fact>]
-let ``simple string lexes to corresponding string token`` () =
+let [<Fact>] ``simple string lexes to corresponding string token`` () =
     create "\"simple string\"" |> expectToken (String "simple string") 1 1 |> expectToken EOF 1 16
 
-[<Fact>]
-let ``multiple string and whitespace lex`` () =
+let [<Fact>] ``multiple string and whitespace lex`` () =
     create "  \"hurr\" \n\t\t\n\t\"durf\"\t\"hyur\""
     |> expectToken (String "hurr") 1 3
     |> expectToken (String "durf") 3 2
     |> expectToken (String "hyur") 3 9
     |> expectToken EOF 3 15
 
-[<Fact>]
-let ``EOF when lexing symbol is symbol completion`` () =
+let [<Fact>] ``EOF when lexing symbol is symbol completion`` () =
     create "define-symbol" |> expectToken (Symbol "define-symbol") 1 1 |> expectToken EOF 1 14
 
 [<Theory>]
@@ -135,8 +125,7 @@ let ``symbol completion char when lexing symbol is symbol completion`` str =
     |> expectToken (Symbol "define-symbol") 1 1
     |> expectPosition 1 14
 
-[<Fact>]
-let ``arbitrary numbers and most special characters are allowed in symbols`` () =
+let [<Fact>] ``arbitrary numbers and most special characters are allowed in symbols`` () =
     create "special!-symbol1.2.3.4550@$,G0"
     |> expectToken (Symbol "special!-symbol1.2.3.4550@$,G0") 1 1
 
@@ -156,14 +145,12 @@ let ``unicode symbol names are allowed and are lexed properly`` str =
 let ``unicode strings are allowed and are lexed properly`` str =
     str |> sprintf "\"%s\"" |> create |> expectToken (String str) 1 1 |> expectToken EOF 1 (1 + str.Length + 2)
 
-[<Fact>]
-let ``multiline strings are allowed and are lexed literally`` () =
+let [<Fact>] ``multiline strings are allowed and are lexed literally`` () =
     create "\"hello. this is dog?\nhello dog. this is not dog.\noh no.\""
     |> expectToken (String "hello. this is dog?\nhello dog. this is not dog.\noh no.") 1 1
     |> expectToken EOF 3 8
 
-[<Fact>]
-let ``floating-pointing values lex as numbers`` =
+let [<Fact>] ``floating-pointing values lex as numbers`` =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (Arb.Default.NormalFloat())
@@ -173,44 +160,36 @@ let ``floating-pointing values lex as numbers`` =
                 |> expectApproxNum x
                 |> ignore))
 
-[<Fact>]
-let ``standalone minus lexes as symbol`` () =
+let [<Fact>] ``standalone minus lexes as symbol`` () =
     create "  -  "
     |> expectToken (Symbol "-") 1 3
     |> expectToken EOF 1 6
 
-[<Fact>]
-let ``minus before digit lexes as number`` () =
+let [<Fact>] ``minus before digit lexes as number`` () =
     create "  -2 "
     |> expectApproxNum -2.0
 
-[<Fact>]
-let ``minus dot is invalid number and lineinfo points to numerical part`` () =
+let [<Fact>] ``minus dot is invalid number and lineinfo points to numerical part`` () =
     create "-."
     |> expectError InvalidNumber 1 2
 
-[<Fact>]
-let ``solitary dot is invalid number`` () =
+let [<Fact>] ``solitary dot is invalid number`` () =
     create "."
     |> expectError InvalidNumber 1 1
 
-[<Fact>]
-let ``dot digit is valid number`` () =
+let [<Fact>] ``dot digit is valid number`` () =
     create ".5"
     |> expectApproxNum 0.5
 
-[<Fact>]
-let ``negative dot digit is valid number`` () =
+let [<Fact>] ``negative dot digit is valid number`` () =
     create "-.5"
     |> expectApproxNum -0.5
 
-[<Fact>]
-let ``digit dot is valid number`` () =
+let [<Fact>] ``digit dot is valid number`` () =
     create "1."
     |> expectApproxNum 1.0
 
-[<Fact>]
-let ``negative digit dot is valid number`` () =
+let [<Fact>] ``negative digit dot is valid number`` () =
     create "-1."
     |> expectApproxNum -1.0
 
@@ -274,8 +253,7 @@ let fuzzSymbolGen minLength maxLength =
     }
 let fuzzSymbolArb minLength maxLength = fuzzSymbolGen minLength maxLength |> Arb.fromGen
 
-[<Fact>]
-let ``any unicode string not containing unescaped double quotes is valid`` () =
+let [<Fact>] ``any unicode string not containing unescaped double quotes is valid`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (fuzzStringArb 0 1200)
@@ -285,8 +263,7 @@ let ``any unicode string not containing unescaped double quotes is valid`` () =
                 |> expectString str
                 |> ignore))
 
-[<Fact>]
-let ``any unicode symbol name not containing whitespace or reserved characters is valid`` () =
+let [<Fact>] ``any unicode symbol name not containing whitespace or reserved characters is valid`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (fuzzSymbolArb 0 96)
@@ -295,8 +272,7 @@ let ``any unicode symbol name not containing whitespace or reserved characters i
                 |> expectSymbol str
                 |> ignore))
 
-[<Fact>]
-let ``symbol on adjacent right of number lexes as number followed by symbol`` () =
+let [<Fact>] ``symbol on adjacent right of number lexes as number followed by symbol`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (Arb.fromGen 
@@ -311,8 +287,7 @@ let ``symbol on adjacent right of number lexes as number followed by symbol`` ()
                 |> expectSymbol expectedSym
                 |> ignore))
 
-[<Fact>]
-let ``number on adjacent right of symbol lexes as symbol`` () =
+let [<Fact>] ``number on adjacent right of symbol lexes as symbol`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (Arb.fromGen 
@@ -326,8 +301,7 @@ let ``number on adjacent right of symbol lexes as symbol`` () =
                 |> expectSymbol str
                 |> ignore))
 
-[<Fact>]
-let ``string on adjacent right of symbol lexes as symbol followed by string`` () =
+let [<Fact>] ``string on adjacent right of symbol lexes as symbol followed by string`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (Arb.fromGen 
@@ -342,8 +316,7 @@ let ``string on adjacent right of symbol lexes as symbol followed by string`` ()
                 |> expectString expectedStr
                 |> ignore))
 
-[<Fact>]
-let ``symbol on adjacent right of string lexes as string followed by symbol`` () =
+let [<Fact>] ``symbol on adjacent right of string lexes as string followed by symbol`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (Arb.fromGen 
@@ -358,8 +331,7 @@ let ``symbol on adjacent right of string lexes as string followed by symbol`` ()
                 |> expectSymbol expectedSym
                 |> ignore))
 
-[<Fact>]
-let ``number on adjacent right of string lexes as string followed by number`` () =
+let [<Fact>] ``number on adjacent right of string lexes as string followed by number`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (Arb.fromGen 
@@ -374,8 +346,7 @@ let ``number on adjacent right of string lexes as string followed by number`` ()
                 |> expectApproxNum expectedNum
                 |> ignore))
 
-[<Fact>]
-let ``string on adjacent right of number lexes as number followed by string`` () =
+let [<Fact>] ``string on adjacent right of number lexes as number followed by string`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (Arb.fromGen 
@@ -390,20 +361,17 @@ let ``string on adjacent right of number lexes as number followed by string`` ()
                 |> expectString expectedStr
                 |> ignore))
 
-[<Fact>]
-let ``comment on adjacent right to symbol is ignored`` () =
+let [<Fact>] ``comment on adjacent right to symbol is ignored`` () =
     create "symbol#this is a comment!"
     |> expectSymbol "symbol"
     |> expectTokenType EOF
 
-[<Fact>]
-let ``comment on adjacent right to string is ignored`` () =
+let [<Fact>] ``comment on adjacent right to string is ignored`` () =
     create "\"string\"#this is a comment!"
     |> expectString "string"
     |> expectTokenType EOF
 
-[<Fact>]
-let ``comment on adjacent right to number is ignored`` () =
+let [<Fact>] ``comment on adjacent right to number is ignored`` () =
     create "1.305#this is a comment!"
     |> expectApproxNum 1.305
     |> expectTokenType EOF
@@ -417,16 +385,13 @@ let ``comment on adjacent right to number is ignored`` () =
 let ``minus on adjacent left of non-number lexes as symbol`` str =
     sprintf "-%s" str |> create |> expectSymbol "-"
 
-[<Fact>]
-let ``minus on adjacent left of symbol is part of that symbol`` () =
+let [<Fact>] ``minus on adjacent left of symbol is part of that symbol`` () =
     create "-merged-symbol!" |> expectSymbol "-merged-symbol!"
 
-[<Fact>]
-let ``negative number on adjacent left of symbol lexes as number then symbol`` () =
+let [<Fact>] ``negative number on adjacent left of symbol lexes as number then symbol`` () =
     create "-9Wv0m" |> expectApproxNum -9.0 |> expectSymbol "Wv0m"
 
-[<Fact>]
-let ``period followed by symbol is invalid number`` () =
+let [<Fact>] ``period followed by symbol is invalid number`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (fuzzSymbolArb 0 24)
@@ -436,8 +401,7 @@ let ``period followed by symbol is invalid number`` () =
                 |> expectErrorType InvalidNumber
                 |> ignore))
 
-[<Fact>]
-let ``period followed by string is invalid number`` () =
+let [<Fact>] ``period followed by string is invalid number`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll
             (fuzzStringArb 0 24)
@@ -456,12 +420,10 @@ let ``period followed by reserved character is invalid number`` str =
     |> create
     |> expectErrorType InvalidNumber
 
-[<Fact>]
-let ``consecutive periods is unexpected character`` () =
+let [<Fact>] ``consecutive periods is unexpected character`` () =
     create "..." |> expectErrorType (UnexpectedCharacter '.')
 
-[<Fact>]
-let ``adjacent strings lex as multiple strings`` () =
+let [<Fact>] ``adjacent strings lex as multiple strings`` () =
     Check.QuickThrowOnFailure
         (Prop.forAll 
             (fuzzStringGen 0 24 |> Gen.two |> Arb.fromGen)
@@ -472,8 +434,7 @@ let ``adjacent strings lex as multiple strings`` () =
                 |> expectString b
                 |> ignore))
 
-[<Fact>]
-let ``test case: simple s-expression`` () =
+let [<Fact>] ``test case: simple s-expression`` () =
     create "(bind-function fib '(n) -5.01 (\"don't forget me\"))"
     |> expectTokenType LParen
     |> expectSymbol "bind-function"

@@ -1,7 +1,6 @@
 module Blang.Tests.Value
 
 open Xunit
-open FsCheck
 open Swensen.Unquote
 
 open Blang.RuntimeTypes
