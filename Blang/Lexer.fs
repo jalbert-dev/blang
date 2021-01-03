@@ -24,7 +24,7 @@ let private isValidSymbolStarter c =
     isValidSymbolChar c && not (isNumeric c)
 
 // Lexer functions
-let private atEof lexer = lexer.Index >= String.length lexer.Source
+let atEof lexer = lexer.Index >= String.length lexer.Source
 let private currentChar lexer = lexer.Source.[lexer.Index]
 let private moveNext lexer =
     if atEof lexer then 

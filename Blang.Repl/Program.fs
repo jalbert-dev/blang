@@ -1,13 +1,21 @@
-// Learn more about F# at http://docs.microsoft.com/dotnet/fsharp
-
 open System
+open Blang
 
-// Define a function to construct a message to print
-let from whom =
-    sprintf "from %s" whom
+let rec repl () =
+    Console.Write("> ")
+    let input = Console.ReadLine()
+
+    match Parser.parse (Lexer.create input, Lexer.next) with
+    | Ok (value, rest) -> 
+        if (not << Lexer.atEof) rest then
+            Console.WriteLine("WARNING: Input beyond the first value is discarded.")
+            printfn "         (Discarded input: \"%s\")" (rest.Source.Substring(rest.Index))
+        value |> Value.stringify |> printfn "%s"
+    | Error err -> printfn "%A" err
+
+    repl ()
 
 [<EntryPoint>]
 let main argv =
-    let message = from "F#" // Call the function
-    printfn "Hello world %s" message
-    0 // return an integer exit code
+    repl ()
+    0
