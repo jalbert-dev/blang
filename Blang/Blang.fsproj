@@ -3,11 +3,13 @@
     <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="RuntimeTypes.fs" />
     <Compile Include="ParserTypes.fs" />
+    <Compile Include="ErrorTypes.fs" />
+    <Compile Include="RuntimeTypes.fs" />
     <Compile Include="Lexer.fs" />
     <Compile Include="Value.fs" />
     <Compile Include="Scope.fs" />
     <Compile Include="Parser.fs" />
+    <Compile Include="Evaluator.fs" />
   </ItemGroup>
 </Project>

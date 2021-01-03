@@ -6,6 +6,7 @@ open Swensen.Unquote
 open Blang.Parser
 open Blang.ParserTypes
 open Blang.RuntimeTypes
+open Blang.ErrorTypes
 
 // The parser interface is designed to avoid coupling to a specific token source.
 // For the purposes of unit testing, we'll create a token source that just iterates
@@ -20,13 +21,25 @@ let getNext = function
 let tokenSourceFromList lst =
     (lst, getNext)
 
-let expectParseValue tokenList expectedValue =
+// Since our test tokens will propagate their position to the runtime values that
+// they end up parsing to, we need to make sure the expected output has that same
+// position of 0:0, rather than None. (A little bit of a hack, I guess!)
+let createValueAt00 valueType =
+    { Value.Type = valueType 
+      Position =
+        Some { Line = 0; Character = 0 } }
+let Expression = Expression >> createValueAt00
+let NumberAtom = NumberAtom >> createValueAt00
+let StringAtom = StringAtom >> createValueAt00
+let SymbolAtom = SymbolAtom >> createValueAt00
+
+let expectParseValue tokenList (expectedValue: Value) =
     test <@ match tokenList |> (tokenSourceFromList >> parse) with
-            | Ok (actual, []) -> actual = expectedValue
+            | Ok (actual, []) -> actual.Type = expectedValue.Type
             | _ -> false @>
-let expectParseResult tokenList (expectedValue, expectedTail) =
+let expectParseResult tokenList (expectedValue: Value, expectedTail) =
     test <@ match tokenList |> (tokenSourceFromList >> parse) with
-            | Ok (actual, rest) -> actual = expectedValue && rest = expectedTail 
+            | Ok (actual, rest) -> actual.Type = expectedValue.Type && rest = expectedTail 
             | _ -> false @>
 let expectParseError tokenList expectedError =
     test <@ match tokenList |> (tokenSourceFromList >> parse) with

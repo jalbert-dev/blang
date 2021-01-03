@@ -3,8 +3,10 @@ module Blang.Tests.Lexer
 open Xunit
 open FsCheck
 open Swensen.Unquote
+
 open Blang.Lexer
 open Blang.ParserTypes
+open Blang.ErrorTypes
 
 let checkOk = function | Ok _ -> true | _ -> false
 let checkError = function | Error _ -> true | Ok _ -> false

@@ -10,8 +10,16 @@ let rec private stringifyExpr expr =
         } |> String.concat " "
         yield ")"
     } |> String.concat ""
-and stringify = function
+and stringify { Value.Type = valueType } =
+    match valueType with
     | NumberAtom x -> sprintf "%g" x
     | SymbolAtom x -> sprintf "%s" x
     | StringAtom x -> sprintf "\"%s\"" x
     | Expression x -> stringifyExpr x
+
+let createWithPosition position valueType =
+    { Value.Type = valueType;
+      Position = Some position }
+let createAnon valueType = 
+    { Value.Type = valueType;
+      Position = None }

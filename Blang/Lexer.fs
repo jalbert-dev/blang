@@ -1,6 +1,7 @@
 module Blang.Lexer
 
 open ParserTypes
+open Blang.ErrorTypes
 
 // Lexer categorizers
 let private forbiddenSymbolChars = 

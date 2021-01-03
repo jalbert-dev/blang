@@ -10,6 +10,13 @@ open Blang.Value
 // and details are subject to change, so for the moment I'm only 
 // going to bother testing a few simple expressions.
 
+// We'll redefine the constructors for ValueTypes to create actual 
+// Values instead, to simplify specification of expected output
+let Expression = Expression >> createAnon
+let NumberAtom = NumberAtom >> createAnon
+let StringAtom = StringAtom >> createAnon
+let SymbolAtom = SymbolAtom >> createAnon
+
 let [<Fact>] ``a symbol value stringifies to its value`` () =
     test <@ stringify (SymbolAtom "hello-world") = "hello-world" @>
 

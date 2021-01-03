@@ -14,11 +14,18 @@ module Blang.RuntimeTypes
 // are usable as lists and can store arbitrary values for as long as they
 // remain unevaluated.
 
-type Value =
+type ValueType =
     | NumberAtom of double
     | SymbolAtom of string
     | StringAtom of string
     | Expression of Value list
+and Value =
+    { Type: ValueType
+      /// The line position that this value was created from, if the
+      /// value was created from a token or tokens. If this value was
+      /// created from manipulation of other values (for example 'a + b'),
+      /// then that value is "anonymous" and has a position of None.
+      Position: ParserTypes.LineInfo option }
 
 // Functions are currently not a distinct case of a bound value.
 // They can be represented as a bound (and thus unevaluated) 
