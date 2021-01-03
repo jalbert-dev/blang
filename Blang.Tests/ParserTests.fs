@@ -17,7 +17,7 @@ let createToken t =
 let getNext = function
     | [] -> Ok (createToken EOF, [])
     | h::t -> Ok (createToken h, t)
-let rec tokenSourceFromList lst =
+let tokenSourceFromList lst =
     (lst, getNext)
 
 let expectParseValue tokenList expectedValue =
