@@ -10,7 +10,6 @@ type TokenType =
     | Symbol of string
     | LParen
     | RParen
-    | SingleQuote
     | EOF
 
 type Token =
@@ -29,9 +28,8 @@ type EvalErrorType =
     | InvalidNumber
 
     // parse errors
-    | UnexpectedEOF
-    | UnexpectedCloseExpression
-    | ExpectedExpression
+    | UnexpectedToken of TokenType
+    | ExpectedValue
 
 type EvalError =
     { Type: EvalErrorType

@@ -72,7 +72,6 @@ let [<Fact>] ``multiple lex at EOF always returns an EOF without moving lexer`` 
 
 let [<Fact>] ``reserved symbols lex to their token equivalents`` () =
     let expect str tokType = str |> create |> expectToken tokType 1 1 |> expectToken EOF 1 2 |> ignore
-    expect "'" SingleQuote
     expect "(" LParen
     expect ")" RParen
 
@@ -117,7 +116,6 @@ let ``whitespace when lexing symbol is symbol completion`` delimiter line column
 [<Theory>]
 [<InlineData("(")>]
 [<InlineData(")")>]
-[<InlineData("'")>]
 [<InlineData("\"")>]
 let ``symbol completion char when lexing symbol is symbol completion`` str =
     sprintf "define-symbol%s" str
@@ -218,7 +216,7 @@ let fuzzSymbolCharaSet =
     |> Gen.filter (fun str ->
         not <| List.contains str [
             " "; "\r"; "\t"; "\n";
-            "'"; "."; "("; ")"; "\""; "#";
+            "."; "("; ")"; "\""; "#";
         ])
 let fuzzSymbolStarterCharaSet =
     fuzzSymbolCharaSet
@@ -380,7 +378,6 @@ let [<Fact>] ``comment on adjacent right to number is ignored`` () =
 [<InlineData("\"This is a string\"")>]
 [<InlineData("(")>]
 [<InlineData(")")>]
-[<InlineData("'(")>]
 [<InlineData("# comments shouldn't matter but what the hey! test cases are free")>]
 let ``minus on adjacent left of non-number lexes as symbol`` str =
     sprintf "-%s" str |> create |> expectSymbol "-"
@@ -412,7 +409,6 @@ let [<Fact>] ``period followed by string is invalid number`` () =
                 |> ignore))
 
 [<Theory>]
-[<InlineData("'")>]
 [<InlineData("(")>]
 [<InlineData(")")>]
 let ``period followed by reserved character is invalid number`` str =
@@ -435,12 +431,12 @@ let [<Fact>] ``adjacent strings lex as multiple strings`` () =
                 |> ignore))
 
 let [<Fact>] ``test case: simple s-expression`` () =
-    create "(bind-function fib '(n) -5.01 (\"don't forget me\"))"
+    create "(bind-function fib (' n) -5.01 (\"don't forget me\"))"
     |> expectTokenType LParen
     |> expectSymbol "bind-function"
     |> expectSymbol "fib"
-    |> expectTokenType SingleQuote
     |> expectTokenType LParen
+    |> expectSymbol "'"
     |> expectSymbol "n"
     |> expectTokenType RParen
     |> expectApproxNum -5.01

@@ -13,6 +13,7 @@ module Blang.RuntimeTypes
 // when they are evaluated. This means Expression values, like s-expressions,
 // are usable as lists and can store arbitrary values for as long as they
 // remain unevaluated.
+
 type Value =
     | NumberAtom of double
     | SymbolAtom of string
@@ -21,8 +22,8 @@ type Value =
 
 // Functions are currently not a distinct case of a bound value.
 // They can be represented as a bound (and thus unevaluated) 
-// expression of form ((x y) (+ x y)), for example. Or in script:
-//     '((x y) (+ x y))
+// expression of form (args body), for example. Or in script:
+//     (' (x y) (+ x y))
 
 type Scope =
       /// The parent scope of this Scope. Used during value lookup and error tracing.

@@ -4,7 +4,7 @@ open ParserTypes
 
 // Lexer categorizers
 let private forbiddenSymbolChars = 
-    [ '\''; '('; ')'; '"'; '#' ]
+    [ '('; ')'; '"'; '#' ]
 let private isNewline c =
     c = '\n'
 let private isWhitespace c =
@@ -126,7 +126,6 @@ let rec next (lexer: LexState) : Result<Token * LexState, EvalError> =
     // reserved characters
     | MatchChar('(') rest -> rest |> emit LParen lexer.Position
     | MatchChar(')') rest -> rest |> emit RParen lexer.Position
-    | MatchChar('\'') rest -> rest |> emit SingleQuote lexer.Position
     // comments/whitespace
     | MatchChar('#') rest -> rest |> eatUntilNewline |> next
     | MatchBy(isWhitespace) rest -> rest |> next
