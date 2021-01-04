@@ -39,10 +39,10 @@ let private moveNext lexer =
                     { Line = lexer.Position.Line + 1; Character = 1 }
                 | _ ->
                     { lexer.Position with Character = lexer.Position.Character + 1 } }
-let private createToken (pos: LineInfo) (tokType: TokenType) =
+let private createToken (pos: RuntimeTypes.LineInfo) (tokType: TokenType) =
     { Token.Type = tokType; Position = pos }
 let private createError (lexer: LexState) (errType: EvalErrorType) =
-    ({ EvalError.Type = errType; Position = lexer.Position })
+    ({ EvalError.Type = errType; Position = Some lexer.Position })
 
 // Lexer active patterns
 let inline private ifTrueThen value f = if f then Some value else None

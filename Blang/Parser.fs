@@ -25,7 +25,7 @@ let rec private parseExpr (producerState, produceToken: 'a -> Result<Token * 'a,
     producerState |> produceToken
     >>= fun (token, state) ->
             match token.Type with
-            | EOF -> Error (createError ExpectedValue token.Position)
+            | EOF -> Error (createError ExpectedValue (Some token.Position))
             | RParen -> Ok (List.rev exprBodyAcc |> Expression |> Value.createWithPosition position, state)
             | _ -> 
                 parseVal token (state, produceToken)
@@ -36,7 +36,7 @@ and private parseVal token (producerState, produceToken) =
     | EOF -> (unitValue, producerState) |> Ok
     | AtomicValue x -> (x |> Value.createWithPosition token.Position, producerState) |> Ok
     | LParen -> parseExpr (producerState, produceToken) token.Position []
-    | _ -> Error (createError (UnexpectedToken token.Type) token.Position)
+    | _ -> Error (createError (UnexpectedToken token.Type) (Some token.Position))
 
 let parse (tokenizerStartState: 'a, tokenProducer: TokenProducer<'a>) : Result<Value * 'a, EvalError> = 
     tokenProducer tokenizerStartState

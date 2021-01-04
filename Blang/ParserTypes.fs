@@ -1,9 +1,5 @@
 module Blang.ParserTypes
 
-type LineInfo =
-    { Line: int
-      Character: int }
-
 type TokenType =
     | Number of double
     | String of string
@@ -14,9 +10,9 @@ type TokenType =
 
 type Token =
     { Type: TokenType
-      Position: LineInfo }
+      Position: RuntimeTypes.LineInfo }
 
 type LexState =
     { Source: string
       Index: int 
-      Position: LineInfo }
+      Position: RuntimeTypes.LineInfo }

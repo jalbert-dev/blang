@@ -1,12 +1,18 @@
 module Blang.RuntimeTypes
 
+type LineInfo =
+    { Line: int
+      Character: int }
+
 // Expressions work kinda like informal s-expressions.
 // Atom values evaluate immediately to their value.
 // Expression values are composed of any number of other values.
 //   When evaluated, the first value in the expression is evaluated and
 //   the resulting symbol used is interpreted as the name of a function
 //   bound in the evaluation scope.
-//   The remaining values are evaluated and the resulting values passed to
+//   The remaining values are evaluated. Any remaining symbol values are
+//   interpreted as identifiers of values bound to the current scope and replaced
+//   with those values. Then the resulting list of values is passed to
 //   the function being invoked.
 //   If the expression contains no values, it evaluates to itself.
 // Note that Expression values are only required to have a leading symbol value
@@ -23,9 +29,9 @@ and Value =
     { Type: ValueType
       /// The line position that this value was created from, if the
       /// value was created from a token or tokens. If this value was
-      /// created from manipulation of other values (for example 'a + b'),
+      /// created from evaluation (for example 'a + b'),
       /// then that value is "anonymous" and has a position of None.
-      Position: ParserTypes.LineInfo option }
+      Position: LineInfo option }
 
 // Functions are currently not a distinct case of a bound value.
 // They can be represented as a bound (and thus unevaluated) 

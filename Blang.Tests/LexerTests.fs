@@ -26,7 +26,9 @@ let expectErrorLex lexer =
 let expectToken expected line character lexer =
     let (token, rest) = expectOkLex lexer
     test <@ token.Type = expected @>
-    test <@ token.Position = { Line = line; Character = character } @>
+    test <@ token.Position = 
+                { Blang.RuntimeTypes.LineInfo.Line = line
+                  Blang.RuntimeTypes.LineInfo.Character = character } @>
     rest
 
 let expectApproxNum expected lexer =
@@ -57,14 +59,20 @@ let expectTokenType expected lexer =
 
 let expectError error line character lexer =
     let result = expectErrorLex lexer
-    test <@ result = { Type = error; Position = { Line = line; Character = character } } @>
+    test <@ result = 
+                { Type = error
+                  Position = Some 
+                    { Blang.RuntimeTypes.LineInfo.Line = line
+                      Blang.RuntimeTypes.LineInfo.Character = character } } @>
 
 let expectErrorType errorType lexer =
     let err = expectErrorLex lexer
     test <@ errorType = err.Type @>
 
 let expectPosition line character (lexer: LexState) =
-    test <@ lexer.Position = { Line = line; Character = character } @>
+    test <@ lexer.Position = 
+                { Blang.RuntimeTypes.LineInfo.Line = line
+                  Blang.RuntimeTypes.LineInfo.Character = character } @>
 
 let [<Fact>] ``empty lex is always EOF`` () =
     create "" |> expectToken EOF 1 1

@@ -12,6 +12,11 @@ type EvalErrorType =
     | UnexpectedToken of TokenType
     | ExpectedValue
 
+    // eval errors
+    | FunctionIdentifierMustBeSymbol of RuntimeTypes.ValueType
+    | UnboundIdentifier of string
+    | WrongNumberOfSuppliedArguments of string * int * int
+
 type EvalError =
     { Type: EvalErrorType
-      Position: LineInfo }
+      Position: RuntimeTypes.LineInfo option }
