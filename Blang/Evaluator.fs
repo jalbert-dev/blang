@@ -37,20 +37,18 @@ let private lookupSymbolValue scope = function
                           Position = pos }
     | whatever -> Ok whatever
 
-let rec lookupSymbolsInArgList scope lst = function
-    | [] -> Ok (List.rev lst)
+// applicatives are fancier but not as straightforwardly tail recursive (at my skill level, anyhow), 
+// and this compiles down to a simple while loop meaning my stack won't blow up. sorry FP!
+let rec private invertResultList acc f = function
+    | [] -> Ok (List.rev acc)
     | h::t ->
-        match lookupSymbolValue scope h with
-        | Ok value -> lookupSymbolsInArgList scope (value :: lst) t
+        match (f h) with
+        | Ok value -> invertResultList (value :: acc) f t
         | Error err -> Error err
 
-let rec private evalList scope evaluatedList = function
-    | [] -> Ok (List.rev evaluatedList)
-    | h::t ->
-        match (evaluate scope h) with
-        | Ok value -> evalList scope (value :: evaluatedList) t
-        | Error err -> Error err
-and evaluate (scope: Scope) (value: Value) : Result<Value, EvalError> =
+type private NativeFunc = Value list -> Scope -> Result<Value, EvalError>
+
+let rec evaluate (scope: Scope) (value: Value) : Result<Value, EvalError> =
     match value.Type with
     | Expression [] -> Ok Parser.unitValue
     | Expression (funcIdent::args) ->
@@ -66,9 +64,9 @@ and evaluate (scope: Scope) (value: Value) : Result<Value, EvalError> =
                         { ErrorTypes.EvalError.Type = WrongNumberOfSuppliedArguments (identifier, len, expected) 
                           Position = funcIdent.Position}
                 // evaluate all arguments
-                >>= evalList scope []
+                >>= (evaluate scope |> invertResultList [])
                 // substitute any symbols with the values they represent
-                >>= lookupSymbolsInArgList scope []
+                >>= (lookupSymbolValue scope |> invertResultList [])
                 <!> fun args ->
                         (args, createScope (Some scope))
                 //>>= bindArgs // bind args to new eval scope. also needs to do type-checking if applicable...
