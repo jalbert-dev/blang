@@ -10,6 +10,8 @@
     <Compile Include="Value.fs" />
     <Compile Include="Scope.fs" />
     <Compile Include="Parser.fs" />
+    <Compile Include="EvalUtil.fs" />
+    <Compile Include="CoreFunctions.fs" />
     <Compile Include="Evaluator.fs" />
   </ItemGroup>
 </Project>

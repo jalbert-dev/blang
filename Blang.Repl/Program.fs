@@ -10,7 +10,7 @@ let rec repl () =
         if (not << Lexer.atEof) rest then
             Console.WriteLine("WARNING: Input beyond the first value is discarded.")
             printfn "         (Discarded input: \"%s\")" (rest.Source.Substring(rest.Index))
-        printfn "%A" (Evaluator.evaluate (Evaluator.createScope None) value)
+        printfn "%A" (Evaluator.evaluate (Scope.create None) value)
     | Error err -> printfn "%A" err
 
     repl ()

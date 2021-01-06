@@ -14,9 +14,13 @@ type EvalErrorType =
 
     // eval errors
     | FunctionIdentifierMustBeSymbol of RuntimeTypes.ValueType
+    | ExpectedNumber of RuntimeTypes.ValueType
+    | ExpectedSymbol of RuntimeTypes.ValueType
+    | ExpectedString of RuntimeTypes.ValueType
+    | ExpectedExpression of RuntimeTypes.ValueType
     | UnboundIdentifier of string
-    | WrongNumberOfSuppliedArguments of string * int * int
-
-type EvalError =
+    | WrongNumberOfSuppliedArguments of int * int
+    | ErrorEvaluatingFunction of string * EvalError
+and EvalError =
     { Type: EvalErrorType
       Position: RuntimeTypes.LineInfo option }
