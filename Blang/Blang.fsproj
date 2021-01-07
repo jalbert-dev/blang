@@ -11,7 +11,8 @@
     <Compile Include="Scope.fs" />
     <Compile Include="Parser.fs" />
     <Compile Include="EvalUtil.fs" />
-    <Compile Include="CoreFunctions.fs" />
     <Compile Include="Evaluator.fs" />
+    <Compile Include="CoreFunctions.fs" />
+    <Compile Include="Runtime.fs" />
   </ItemGroup>
 </Project>

@@ -10,4 +10,4 @@ let rec lookupValue (name: string) (scope: RuntimeTypes.Scope) : RuntimeTypes.Va
 
 let create (parent: RuntimeTypes.Scope option) =
     { RuntimeTypes.Scope.EnclosingScope = parent
-      RuntimeTypes.Scope.SymbolTable = Map.empty }
+      RuntimeTypes.Scope.SymbolTable = System.Collections.Generic.Dictionary() }

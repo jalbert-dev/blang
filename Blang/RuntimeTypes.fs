@@ -1,5 +1,7 @@
 module Blang.RuntimeTypes
 
+open System.Collections.Generic
+
 type LineInfo =
     { Line: int
       Character: int }
@@ -46,4 +48,4 @@ type Scope =
     { EnclosingScope: Scope option
       /// A Scope's symbol table names values accessible within that scope.
       /// Failed lookups in most cases should fall back to the enclosing scope.
-      SymbolTable: Map<string, Value> }
+      SymbolTable: Dictionary<string, Value> }

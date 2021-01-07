@@ -10,7 +10,7 @@ let rec repl () =
         if (not << Lexer.atEof) rest then
             Console.WriteLine("WARNING: Input beyond the first value is discarded.")
             printfn "         (Discarded input: \"%s\")" (rest.Source.Substring(rest.Index))
-        match Evaluator.evaluate (Scope.create None) value with
+        match Runtime.evaluate (Scope.create None) value with
         | Ok value -> 
             printfn "%A" value
             printfn "%s" (Value.stringify value)

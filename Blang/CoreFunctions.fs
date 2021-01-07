@@ -1,16 +1,14 @@
-module Blang.Runtime.Core
+module Blang.RuntimeCore
 
 open Blang
 open Blang.ErrorTypes
 open Blang.RuntimeTypes
 open Blang.EvalUtil
 
-type private NativeFunc = Scope -> Value list -> Result<Value, EvalError>
-type private NativeFuncMap = Map<string, NativeFunc>
-
 let private ( >>= ) a b = Result.bind b a
 let private ( <!> ) a b = Result.map b a
 let private ( >>! ) a b = Result.mapError b a
+let private ( >=> ) f g arg = f arg >>= g
 
 let private isNumber x = expectNumber x <!> ignore
 let private isString x = expectString x <!> ignore
@@ -30,18 +28,36 @@ let private expectArgList typeCheckList args =
         |> invertResultList [] (fun (typeCheck, arg) -> typeCheck arg)
         >>= fun _ -> Ok args
 
-let private wrapBinaryOp op _ (args: Value list) =
-    args |> expectArgList [
+let private evalAndLookupArgs evaluator lookup args =
+    // evaluate each argument in the list of arguments
+    // and lookup their value if symbol
+    args |> ((evaluator >=> lookup) |> invertResultList [])
+
+let private prepareArgsOfType evaluator lookup typeCheckList args =
+    args
+    |> evalAndLookupArgs evaluator lookup
+    >>= expectArgList typeCheckList
+
+let private wrapBinaryOp op eval scope (args: Value list) =
+    args |> prepareArgsOfType eval (lookupSymbolValue scope) [
         isNumber;
         isNumber ]
     <!> fun args -> 
             (op (unwrapAtomNum args.[0]) (unwrapAtomNum args.[1]) |> NumberAtom |> Value.createAnon)
 
-let functionMap : NativeFuncMap =
+let private quote _ _ args = 
+    args |> Expression |> Value.createAnon |> Ok
+let private list evaluator (scope: Scope) args =
+    args |> evalAndLookupArgs evaluator (lookupSymbolValue scope) <!> (Expression >> Value.createAnon)
+let private eval evaluator scope args =
+    args |> prepareArgsOfType evaluator (lookupSymbolValue scope) [ isExpr ]
+    >>= fun args -> evaluator args.[0]
+
+let functionMap : Evaluator.NativeFuncMap =
     Map <| seq {
-        // the only difference is, ' is special-cased to not evaluate its args (ew)
-        yield "'", fun _ args -> args |> Expression |> Value.createAnon |> Ok
-        yield "[]", fun _ args -> args |> Expression |> Value.createAnon |> Ok
+        yield "'", quote
+        yield "[]", list
+        yield "eval", eval
         
         yield "+", wrapBinaryOp ( + );
         yield "-", wrapBinaryOp ( - );
