@@ -25,15 +25,22 @@ let rec evaluate (scope: Scope) (value: Value) : Result<Value, EvalError> =
         evaluate scope funcIdent
         >>= expectFunctionIdentifier
         >>= fun identifier ->
-            // evaluate each argument in the list of arguments
-            args |> (evaluate scope |> invertResultList [])
-            // substitute any remaining symbols with the values they bind
-            >>= (lookupSymbolValue scope |> invertResultList [])
-            >>= fun args ->
-                    //>>= bindArgs // type-check and bind args to new eval scope if a single-bind function
-                    match Runtime.Core.functionMap.TryGetValue identifier with
-                    | true, f -> f args (Scope.create (Some scope))
-                                 >>! wrapErrorInFunction identifier funcIdent.Position
-                    | _ -> Error { ErrorTypes.EvalError.Type = UnboundIdentifier identifier 
-                                   Position = funcIdent.Position }
+                match Runtime.Core.functionMap.TryGetValue identifier with
+                | true, f -> 
+                    let args =
+                        // TODO: this is all getting thrown out the window when I unify these with defined funcs
+                        // the only special case I'm allowing...
+                        if identifier = "'" then
+                            Ok args
+                        else
+                            // evaluate each argument in the list of arguments
+                            args |> (evaluate scope |> invertResultList [])
+                            // substitute any remaining symbols with the values they bind
+                            >>= (lookupSymbolValue scope |> invertResultList [])
+                    args
+                    >>= f (Scope.create (Some scope))
+                    >>! wrapErrorInFunction identifier funcIdent.Position
+                | _ -> Error { ErrorTypes.EvalError.Type = UnboundIdentifier identifier 
+                               Position = funcIdent.Position }
+                //>>= bindArgs // type-check and bind args to new eval scope if a single-bind function
     | _ -> Ok value

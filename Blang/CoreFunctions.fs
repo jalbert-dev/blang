@@ -5,7 +5,7 @@ open Blang.ErrorTypes
 open Blang.RuntimeTypes
 open Blang.EvalUtil
 
-type private NativeFunc = Value list -> Scope -> Result<Value, EvalError>
+type private NativeFunc = Scope -> Value list -> Result<Value, EvalError>
 type private NativeFuncMap = Map<string, NativeFunc>
 
 let private ( >>= ) a b = Result.bind b a
@@ -30,7 +30,7 @@ let private expectArgList typeCheckList args =
         |> invertResultList [] (fun (typeCheck, arg) -> typeCheck arg)
         >>= fun _ -> Ok args
 
-let private wrapBinaryOp op (args: Value list) _ =
+let private wrapBinaryOp op _ (args: Value list) =
     args |> expectArgList [
         isNumber;
         isNumber ]
@@ -39,6 +39,10 @@ let private wrapBinaryOp op (args: Value list) _ =
 
 let functionMap : NativeFuncMap =
     Map <| seq {
+        // the only difference is, ' is special-cased to not evaluate its args (ew)
+        yield "'", fun _ args -> args |> Expression |> Value.createAnon |> Ok
+        yield "[]", fun _ args -> args |> Expression |> Value.createAnon |> Ok
+        
         yield "+", wrapBinaryOp ( + );
         yield "-", wrapBinaryOp ( - );
         yield "*", wrapBinaryOp ( * );
