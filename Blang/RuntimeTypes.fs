@@ -48,4 +48,7 @@ type Scope =
     { EnclosingScope: Scope option
       /// A Scope's symbol table names values accessible within that scope.
       /// Failed lookups in most cases should fall back to the enclosing scope.
-      SymbolTable: Dictionary<string, Value> }
+      SymbolTable: Map<string, Value> }
+
+type SideEffect =
+    | BindLocalValue of string * Value

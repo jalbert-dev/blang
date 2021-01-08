@@ -21,6 +21,7 @@ type EvalErrorType =
     | UnboundIdentifier of string
     | WrongNumberOfSuppliedArguments of int * int
     | ErrorEvaluatingFunction of string * EvalError
+    | InvalidFunctionDefinition of RuntimeTypes.ValueType
 and EvalError =
     { Type: EvalErrorType
       Position: RuntimeTypes.LineInfo option }

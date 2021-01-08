@@ -11,6 +11,10 @@ let expectArgsLength expectedLen args =
     else
         Ok args
 
+let unwrapAtomSymbol = function
+    | { Value.Type = SymbolAtom x } -> x
+    | _ -> failwith "Type checking failure!"
+
 let unwrapAtomNum = function
     | { Value.Type = NumberAtom x } -> x
     | _ -> failwith "Type checking failure!"

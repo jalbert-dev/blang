@@ -14,6 +14,10 @@ let private isNumber x = expectNumber x <!> ignore
 let private isString x = expectString x <!> ignore
 let private isSymbol x = expectSymbol x <!> ignore
 let private isExpr x = expectExpression x <!> ignore
+let private isQuoteExpr = function
+    | { Value.Type = Expression (h::_) } when h.Type = SymbolAtom "'" -> Ok ()
+    | _ -> Error { EvalError.Type = ExpectedValue; Position = None }
+let private isAnyValue _ = Ok ()
 
 let private expectArgList typeCheckList args =
     let expectedLen = List.length typeCheckList
@@ -28,40 +32,82 @@ let private expectArgList typeCheckList args =
         |> invertResultList [] (fun (typeCheck, arg) -> typeCheck arg)
         >>= fun _ -> Ok args
 
-let private evalAndLookupArgs evaluator lookup args =
-    // evaluate each argument in the list of arguments
-    // and lookup their value if symbol
-    args |> ((evaluator >=> lookup) |> invertResultList [])
-
-let private prepareArgsOfType evaluator lookup typeCheckList args =
-    args
-    |> evalAndLookupArgs evaluator lookup
-    >>= expectArgList typeCheckList
-
-let private wrapBinaryOp op eval scope (args: Value list) =
-    args |> prepareArgsOfType eval (lookupSymbolValue scope) [
+let private wrapBinaryOp op _ _ (args: Value list) =
+    args |> expectArgList [
         isNumber;
         isNumber ]
     <!> fun args -> 
-            (op (unwrapAtomNum args.[0]) (unwrapAtomNum args.[1]) |> NumberAtom |> Value.createAnon)
+            (op (unwrapAtomNum args.[0]) (unwrapAtomNum args.[1]) |> NumberAtom |> Value.createAnon), []
 
-let private quote _ _ args = 
-    args |> Expression |> Value.createAnon |> Ok
-let private list evaluator (scope: Scope) args =
-    args |> evalAndLookupArgs evaluator (lookupSymbolValue scope) <!> (Expression >> Value.createAnon)
+let private numberEquals _ _ (args: Value list) =
+    args |> expectArgList [
+        isNumber;
+        isNumber ]
+    <!> fun args ->
+            NumberAtom (if abs ((unwrapAtomNum args.[0]) - (unwrapAtomNum args.[1])) < 0.0000001  then
+                            1.0
+                        else
+                            0.0) |> Value.createAnon, []
+                    
+
+let private unwrapQuote = function
+    | { Value.Type = Expression (h::t) } when h.Type = SymbolAtom "'" -> Ok (Expression t)
+    | _ -> Error { EvalError.Type = ExpectedValue; Position = None }
+
+let withNoSideEffects f x = (f x, [])
+
+let private singletonQuote _ _ args =
+    args 
+    |> expectArgList [ isAnyValue ] 
+    <!> fun args -> args.[0].Type
+    <!> Value.createAnon 
+    <!> withNoSideEffects id 
+let private list _ _ args =
+    args |> (Expression >> Value.createAnon) |> withNoSideEffects id |> Ok
 let private eval evaluator scope args =
-    args |> prepareArgsOfType evaluator (lookupSymbolValue scope) [ isExpr ]
-    >>= fun args -> evaluator args.[0]
+    args |> expectArgList [ isAnyValue ]
+    >>= fun args -> evaluator scope args.[0]
+
+let private ifExpression _ _ args =
+    args |> expectArgList [ isNumber; isAnyValue; isAnyValue ]
+    <!> fun args ->
+        let whichBranch =
+            if (unwrapAtomNum args.[0] > 0.0000001) then
+                1
+            else
+                2
+        args.[whichBranch], []
+
+let private bindValue _ scope args =
+    args |> expectArgList [
+        isSymbol;
+        isAnyValue ]
+    <!> fun args ->
+            (args.[1], [BindLocalValue (unwrapAtomSymbol args.[0], args.[1])])
 
 let functionMap : Evaluator.NativeFuncMap =
     Map <| seq {
-        yield "'", quote
+        yield "'", list
         yield "[]", list
+        yield ":", singletonQuote
         yield "eval", eval
+        yield "bind-value", bindValue
         
         yield "+", wrapBinaryOp ( + );
         yield "-", wrapBinaryOp ( - );
         yield "*", wrapBinaryOp ( * );
         yield "/", wrapBinaryOp ( / );
         yield "mod", wrapBinaryOp ( % );
+        yield "=", numberEquals
+
+        yield "if", ifExpression
     }
+
+let coreScope : Scope =
+    let nativeFunctionBinding id _ =
+            Expression [
+                StringAtom "n" |> Value.createAnon; 
+                StringAtom id |> Value.createAnon] 
+            |> Value.createAnon
+    { Scope.create None with SymbolTable = functionMap
+                                           |> Map.map nativeFunctionBinding }
