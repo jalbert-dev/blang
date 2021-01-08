@@ -56,12 +56,8 @@ let private unwrapQuote = function
 
 let withNoSideEffects f x = (f x, [])
 
-let private singletonQuote _ _ args =
-    args 
-    |> expectArgList [ isAnyValue ] 
-    <!> fun args -> args.[0].Type
-    <!> Value.createAnon 
-    <!> withNoSideEffects id 
+let private quote _ _ args =
+    args |> expectArgList [isAnyValue] <!> List.head <!> withNoSideEffects id
 let private list _ _ args =
     args |> (Expression >> Value.createAnon) |> withNoSideEffects id |> Ok
 let private eval evaluator scope args =
@@ -87,9 +83,8 @@ let private bindValue _ scope args =
 
 let functionMap : Evaluator.NativeFuncMap =
     Map <| seq {
-        yield "'", list
+        yield "'", quote
         yield "[]", list
-        yield ":", singletonQuote
         yield "eval", eval
         yield "bind-value", bindValue
         

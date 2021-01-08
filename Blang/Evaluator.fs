@@ -71,7 +71,7 @@ let rec evaluate
                     match nativeFuncs.TryGetValue identifier with
                     | true, f ->
                         let evalEnv =
-                            if identifier = "'" || identifier = ":" then
+                            if identifier = "'" then
                                 Ok (args, scope)
                             else
                                 evalAndPropagateSideEffects eval' scope [] args
