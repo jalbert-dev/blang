@@ -4,7 +4,8 @@
 }
 
 body, html {
-  height: 100%
+  height: 100%;
+  overflow-y: hidden;
 }
 
 /* fill-max-height class from https://github.com/jgthms/bulma/issues/2704 */
@@ -16,9 +17,23 @@ body, html {
 
 /* I am not known for my subtlety */
 #eval-box-container {
-  bottom: 0;
+  bottom: 0px;
   position: absolute;
   width: 100%;
+}
+
+.eval-log-container {
+  overflow-y: scroll;
+  top: 0px;
+  bottom: 50px;
+  width: 100%;
+  position: absolute;
+}
+
+.scrolling-table {
+  overflow-y: scroll;
+  width: auto;
+  position: absolute;
 }
 
 .code-text {

@@ -31,6 +31,26 @@ type Message =
     | EvalImmediate
     | ClearLog
 
+let private ( >>= ) a b = Result.bind b a
+let private ( <!> ) a b = Result.map b a
+
+let private repl input state =
+    Parser.parse (Lexer.create input, Lexer.next)
+    <!> fun (value, rest) ->
+            let parsedString = sprintf "> %s" (input.Substring(0, rest.Index))
+            if rest |> Lexer.atEof |> not then
+                (value, [
+                    sprintf "WARNING: Input beyond the first value is currently discarded."
+                    sprintf "         (Discarded input: \"%s\")" (rest.Source.Substring(rest.Index))
+                    parsedString
+                ])
+            else
+                value, [parsedString]
+    >>= fun (value, msgs) -> 
+            Runtime.evaluate state value <!> fun x -> x, msgs
+    <!> fun ((value, scope), msgs) ->
+            scope, msgs @ [Value.stringify value]
+
 let update message model =
     match message with
     | SetEvalEntryField str ->
@@ -38,8 +58,14 @@ let update message model =
 
     | EvalImmediate ->
         if model.EvalEntryValue.Length > 0 then
-            { model with Output = model.EvalEntryValue :: model.Output
-                         EvalEntryValue = "" }
+            match repl model.EvalEntryValue model.ReplState with
+            | Ok (nextState, msgs) ->
+                { model with Output = model.Output @ [String.concat "\n" msgs]
+                             ReplState = nextState
+                             EvalEntryValue = "" }
+            | Error err ->
+                { model with Output = model.Output @ [sprintf "%A" err]
+                             EvalEntryValue = "" }
         else
             model
     | ClearLog ->
@@ -47,12 +73,14 @@ let update message model =
 
 let view model dispatch =
     div [attr.``class`` "pb-2 pt-1 pl-2 pr-2 code-text"] [
-        table [attr.``class`` "m-0 table is-hoverable is-bordered is-narrow is-fullwidth"] [
-            tbody [] [
-                forEach (List.rev model.Output) <| fun line ->
-                    tr [] [
-                        td [] [text line]
-                    ]
+        div [attr.``class`` "eval-log-container"] [
+            table [attr.``class`` "m-0 table is-hoverable is-bordered is-narrow is-fullwidth scrolling-table"] [
+                tbody [] [
+                    forEach model.Output <| fun line ->
+                        tr [] [
+                            td [attr.``style`` "white-space: pre-line;"] [text line]
+                        ]
+                ]
             ]
         ]
         div [attr.id "eval-box-container"] [
