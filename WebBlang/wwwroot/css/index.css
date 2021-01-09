@@ -1,0 +1,31 @@
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('css/jbm-nf.ttf') format('ttf');
+}
+
+body, html {
+  height: 100%
+}
+
+/* fill-max-height class from https://github.com/jgthms/bulma/issues/2704 */
+.fill-max-height {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* I am not known for my subtlety */
+#eval-box-container {
+  bottom: 0;
+  position: absolute;
+  width: 100%;
+}
+
+.code-text {
+  font-family: 'JetBrains Mono';
+}
+
+#main {
+  font-family: 'JetBrains Mono';
+  flex: 1;
+}
