@@ -78,7 +78,7 @@ let view model dispatch =
                 tbody [] [
                     forEach model.Output <| fun line ->
                         tr [] [
-                            td [attr.``style`` "white-space: pre-line;"] [text line]
+                            td [attr.``class`` "eval-log-entry"] [text line]
                         ]
                 ]
             ]
