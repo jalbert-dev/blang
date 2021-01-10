@@ -51,11 +51,15 @@ body, html {
 
 .eval-log-container {
   top: 0px;
-  bottom: 46px;
+  bottom: 35px;
   width: 100%;
   position: absolute;
 
   overflow: hidden;
+
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
 }
 
 .eval-log-entry {
@@ -68,12 +72,77 @@ body, html {
   /* border-right-style: none !important; */
 }
 
+#repl-input {
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+}
+
+.editor-parent {
+  position: absolute;
+  top: 36px;
+  bottom: 35px;
+  left: 0px;
+  right: 0px;
+}
+
+#file-select-box {
+  border-radius: 0px;
+  border-color: #363636;
+  border-top: none;
+  border-right: solid;
+  border-left: none;
+  border-width: thin;
+}
+
+#load-file-button {
+  border-top: none;
+  border-right: none;
+  border-left: solid;
+  border-radius: 0px;
+  border-width: thin;
+}
+
+#run-multiline-control {
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  right: 0px;
+  left: auto;
+}
+
+#run-multiline-button {
+  border-width: thin;
+  border-radius: 0px;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+}
+
+#editor-fake-footer {
+  position: absolute;
+  bottom: 0px;
+  top: calc(100% - 35px);
+  left: 0px;
+  right: 0px;
+
+  border-top: solid;
+  border-color: #363636;
+  border-width: thin;
+}
+
 .editor-container {
   position: absolute;
   top: 0px;
   bottom: 0px;
   left: 0%;
   width: 49.9%;
+  overflow: hidden;
+  border-top-right-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+#repl-clear-button {
+  border-top-right-radius: 0px;
 }
 
 .repl-container {

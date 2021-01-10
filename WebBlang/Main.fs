@@ -103,9 +103,40 @@ let loadingText id displayText =
 
 let view model dispatch =
     div [] [
-        div [attr.``id`` "editor-box"; attr.``class`` "editor-container ctrl-bordered m-0"] [
-            loadingText "editor-loading" "Loading editor..."
-            textarea [attr.``id`` "editor-textarea"; attr.``style`` "display: none;"] []
+        div [attr.``class`` "editor-container ctrl-bordered m-0"] [
+            div [attr.``class`` "field has-addons m-0 p-0 is-fullwidth"] [
+                p [attr.``class`` "control is-expanded"] [
+                    div [attr.``class`` "select is-fullwidth sensible-font-size"] [
+                        select [attr.``id`` "file-select-box"] [
+                            option [] [text "test.blah"]
+                            option [] [text "another.blah"]
+                            option [] [text "fib.blah"]
+                        ]
+                    ]
+                ]
+                p [attr.``class`` "control"] [
+                    button [
+                        attr.``id`` "load-file-button"
+                        attr.``class`` "button is-outlined is-dark sensible-font-size"
+                    ] [text "Load"]
+                ]
+            ]
+
+            div [attr.``class`` "container m-0 p-0 editor-parent"] [
+                loadingText "editor-loading" "Loading editor..."
+                textarea [attr.``id`` "editor-textarea"; attr.``style`` "display: none;"] []
+            ]
+
+            div [attr.``id`` "editor-fake-footer"
+                 attr.``class`` "field has-addons is-fullwidth m-0 p-0 has-background-light"] [
+                p [attr.``id`` "run-multiline-control"
+                   attr.``class`` "control has-background-white"] [
+                    button [
+                        attr.``id`` "run-multiline-button"
+                        attr.``class`` "button is-outlined is-dark sensible-font-size"
+                    ] [text "Run"]
+                ]
+            ]
         ]
         div [attr.``class`` "repl-container pb-2 pt-1 pl-2 pr-2 code-text"] [
             div [attr.``class`` "ctrl-bordered eval-log-container sensible-font-size"] [
@@ -120,7 +151,8 @@ let view model dispatch =
             div [attr.id "eval-box-container"] [
                 div [attr.``class`` "field pt-2 has-addons"] [
                     div [attr.``class`` "control is-expanded"] [
-                        input [attr.``class`` "input code-text is-dark sensible-font-size"
+                        input [attr.``id`` "repl-input"
+                               attr.``class`` "input code-text is-dark sensible-font-size"
                                attr.``type`` "text"
                                attr.``placeholder`` "Type expression and press Evaluate"
                                bind.input.string model.EvalEntryValue (dispatch << SetEvalEntryField)
@@ -136,6 +168,7 @@ let view model dispatch =
                     ]
                     div [attr.``class`` "control"] [
                         button [
+                            attr.``id`` "repl-clear-button"
                             attr.``class`` "button is-dark is-outlined sensible-font-size"
                             on.click <| fun _ -> dispatch ClearLog
                         ] [text "Clear"]
