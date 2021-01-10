@@ -68,9 +68,11 @@ body, html {
   /* border-left-style: none !important; */
 }
 
+/*
 .eval-log-entry-type {
-  /* border-right-style: none !important; */
+  border-right-style: none !important;
 }
+*/
 
 #repl-input {
   border-top-left-radius: 0px;
