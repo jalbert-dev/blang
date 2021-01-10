@@ -35,6 +35,16 @@ body, html {
 
 .eval-log-entry {
   white-space: pre-line;
+  width: 100%;
+  /* border-left-style: none !important; */
+}
+
+.eval-log-entry-type {
+  /* border-right-style: none !important; */
+}
+
+.sensible-font-size {
+  font-size: 0.9rem;
 }
 
 .scrolling-table {
