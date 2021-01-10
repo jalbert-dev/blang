@@ -3,7 +3,7 @@
 
 @font-face {
   font-family: 'JetBrains Mono';
-  src: url('css/jbm-nf.ttf') format('ttf');
+  src: url('jbm-nf.ttf') format('truetype');
 }
 
 body, html {
@@ -174,7 +174,7 @@ body, html {
 
 .editor-wrapper {
   height: 100%;
-  font-family: 'JetBrains Mono';
+  font-family: 'JetBrains Mono', monospace;
 }
 
 .scrolling-table {
@@ -184,10 +184,10 @@ body, html {
 }
 
 .code-text {
-  font-family: 'JetBrains Mono';
+  font-family: 'JetBrains Mono', monospace;
 }
 
 #main {
-  font-family: 'JetBrains Mono';
+  font-family: 'JetBrains Mono', monospace;
   flex: 1;
 }
