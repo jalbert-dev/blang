@@ -51,11 +51,10 @@ let private mapTuple (f, g) (a, b) = (f a, g b)
 
 let trace x = printfn "%A" x; x
 
-let rec evaluate
-                (nativeFuncs: NativeFuncMap) 
-                (scope: Scope) 
-                (value: Value) 
-                : Result<Value * SideEffect list, EvalError> =
+let rec evaluate (nativeFuncs: NativeFuncMap) 
+                 (scope: Scope) 
+                 (value: Value) 
+                 : Result<Value * SideEffect list, EvalError> =
     let eval' = evaluate nativeFuncs
     // `scope` is the scope that is to be modified by SideEffects.
     match value.Type with
@@ -65,8 +64,8 @@ let rec evaluate
     | Expression (funcIdent::args) ->
         eval' scope funcIdent
         <!> mapTuple (id, applySideEffects scope)
-        >>= fun (value, scope) ->
-                match value with
+        >>= fun (funcDef, scope) ->
+                match funcDef with
                 | NativeFuncValue identifier ->
                     match nativeFuncs.TryGetValue identifier with
                     | true, f ->
@@ -76,8 +75,11 @@ let rec evaluate
                             else
                                 evalAndPropagateSideEffects eval' scope [] args
 
-                        evalEnv >>= fun (args, scope) -> f eval' scope args
-                    | _ -> Error { ErrorTypes.EvalError.Type = UnboundIdentifier identifier 
+                        evalEnv 
+                        >>= fun (args, scope) -> f eval' scope args
+                        >>! wrapErrorInFunction identifier value.Position
+                    | _ -> Error { ErrorTypes.EvalError.Type = InvalidNativeFunctionName identifier 
                                    Position = funcIdent.Position }
-                | _ -> Error { EvalError.Type = InvalidFunctionDefinition value.Type; Position = None}
+                | _ -> Error { EvalError.Type = InvalidFunctionDefinition funcDef.Type
+                               Position = funcIdent.Position}
     | _ -> Ok (value, [])

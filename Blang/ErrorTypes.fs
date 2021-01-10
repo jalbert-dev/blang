@@ -22,6 +22,7 @@ type EvalErrorType =
     | WrongNumberOfSuppliedArguments of int * int
     | ErrorEvaluatingFunction of string * EvalError
     | InvalidFunctionDefinition of RuntimeTypes.ValueType
+    | InvalidNativeFunctionName of string
 and EvalError =
     { Type: EvalErrorType
       Position: RuntimeTypes.LineInfo option }
