@@ -45,13 +45,11 @@ let private ( <!> ) a b = Result.map b a
 let private repl input state =
     Parser.parse (Lexer.create input, Lexer.next)
     <!> fun (value, rest) ->
-            let parsedString = [LogEcho <| input.Substring(0, rest.Index)]
-            if rest |> Lexer.atEof |> not then
-                (value, [
-                    LogWarning <| sprintf "Input beyond the first value is currently discarded.\n(Discarded input: \"%s\")" (rest.Source.Substring(rest.Index))
-                ] @ parsedString)
-            else
-                value, parsedString
+            value,
+                if rest |> Lexer.atEof |> not then
+                    [ LogWarning <| sprintf "Input beyond the first value is currently discarded.\n(Discarded input: \"%s\")" (rest.Source.Substring(rest.Index)) ]
+                else
+                    []
     >>= fun (value, msgs) -> 
             Runtime.evaluate state value <!> fun x -> x, msgs
     <!> fun ((value, scope), msgs) ->
@@ -64,13 +62,14 @@ let update message model =
 
     | EvalImmediate ->
         if model.EvalEntryValue.Length > 0 then
+            let echoMsg = LogEcho <| model.EvalEntryValue
             match repl model.EvalEntryValue model.ReplState with
             | Ok (nextState, msgs) ->
-                { model with Output = model.Output @ msgs
+                { model with Output = model.Output @ (echoMsg :: msgs)
                              ReplState = nextState
                              EvalEntryValue = "" }
             | Error err ->
-                { model with Output = model.Output @ [LogError <| sprintf "%A" err]
+                { model with Output = model.Output @ [echoMsg; LogError <| sprintf "%A" err]
                              EvalEntryValue = "" }
         else
             model
@@ -97,44 +96,70 @@ let formatLogEntry (msg: LogEntryType) =
         | LogWarning msg -> createEntryWithIcon ("eval-log-entry-warning has-background-warning-light", "fas fa-exclamation has-text-warning") ("", msg)
     )
 
+let loadingText id displayText =
+    div [attr.``id`` id; attr.``class`` "loading-text-parent"] [
+        h1 [attr.``class`` "loading-text-centered"] [text displayText]
+    ]
+
 let view model dispatch =
-    div [attr.``class`` "pb-2 pt-1 pl-2 pr-2 code-text"] [
-        div [attr.``class`` "eval-log-container sensible-font-size"] [
-            table [attr.``class`` "m-0 table is-hoverable is-bordered is-narrow is-fullwidth scrolling-table"] [
-                tbody [] [
-                    forEach model.Output <| formatLogEntry
+    div [] [
+        div [attr.``id`` "editor-box"; attr.``class`` "editor-container ctrl-bordered m-0"] [
+            loadingText "editor-loading" "Loading editor..."
+            textarea [attr.``id`` "editor-textarea"; attr.``style`` "display: none;"] []
+        ]
+        div [attr.``class`` "repl-container pb-2 pt-1 pl-2 pr-2 code-text"] [
+            div [attr.``class`` "ctrl-bordered eval-log-container sensible-font-size"] [
+                div [attr.``class`` "fill-parent flex-backscroll"] [
+                    table [attr.``class`` "m-0 table is-hoverable is-bordered is-narrow is-fullwidth scrolling-table ctrl-inside-bordered"] [
+                        tbody [] [
+                            forEach model.Output <| formatLogEntry
+                        ]
+                    ]
                 ]
             ]
-        ]
-        div [attr.id "eval-box-container"] [
-            div [attr.``class`` "field pt-2 has-addons"] [
-                div [attr.``class`` "control is-expanded"] [
-                    input [attr.``class`` "input code-text is-dark sensible-font-size"
-                           attr.``type`` "text"
-                           attr.``placeholder`` "Type expression and press Evaluate"
-                           bind.input.string model.EvalEntryValue (dispatch << SetEvalEntryField)
-                           on.keyup <| fun args -> match args.Key with
-                                                   | "Enter" -> dispatch EvalImmediate
-                                                   | _ -> ()]
-                ]
-                div [attr.``class`` "control"] [
-                    button [
-                        attr.``class`` "button is-dark is-outlined sensible-font-size"
-                        on.click <| fun _ -> dispatch EvalImmediate
-                    ] [text "Evaluate"]
-                ]
-                div [attr.``class`` "control"] [
-                    button [
-                        attr.``class`` "button is-dark is-outlined sensible-font-size"
-                        on.click <| fun _ -> dispatch ClearLog
-                    ] [text "Clear"]
+            div [attr.id "eval-box-container"] [
+                div [attr.``class`` "field pt-2 has-addons"] [
+                    div [attr.``class`` "control is-expanded"] [
+                        input [attr.``class`` "input code-text is-dark sensible-font-size"
+                               attr.``type`` "text"
+                               attr.``placeholder`` "Type expression and press Evaluate"
+                               bind.input.string model.EvalEntryValue (dispatch << SetEvalEntryField)
+                               on.keyup <| fun args -> match args.Key with
+                                                       | "Enter" -> dispatch EvalImmediate
+                                                       | _ -> ()]
+                    ]
+                    div [attr.``class`` "control"] [
+                        button [
+                            attr.``class`` "button is-dark is-outlined sensible-font-size"
+                            on.click <| fun _ -> dispatch EvalImmediate
+                        ] [text "Evaluate"]
+                    ]
+                    div [attr.``class`` "control"] [
+                        button [
+                            attr.``class`` "button is-dark is-outlined sensible-font-size"
+                            on.click <| fun _ -> dispatch ClearLog
+                        ] [text "Clear"]
+                    ]
                 ]
             ]
         ]
     ]
 
+open System.Threading.Tasks
+
 type MyApp() =
     inherit ProgramComponent<Model, Message>()
 
+
     override this.Program =
         Program.mkSimple (fun _ -> initModel) update view
+    
+    override this.OnAfterRenderAsync (firstRender: bool) =
+        let js = this.JSRuntime
+        async {
+            if firstRender then
+                let! _ = js.InvokeAsync("createIde", [| |]).AsTask() |> Async.AwaitTask
+                return ()
+            else
+                return ()
+        } |> Async.StartAsTask :> Task
