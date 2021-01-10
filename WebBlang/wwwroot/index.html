@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>Web Blang!</title>
+		<base href="/blang/">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.1/css/bulma.min.css">
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css">
+		
+		<script src="lib/codemirror.js"></script>
+		<link rel="stylesheet" href="lib/codemirror.css">
+		<script src="mode/commonlisp/commonlisp.js"></script>
+		<script src="interop.js"></script>
+
+		<link rel="stylesheet" href="css/index.css">
+	</head>
+	<body>
+		<section class="hero is-light is-fullheight">
+			<div class="hero-head">
+				<header class="navbar">
+					<div class="container">
+						<div class="navbar-brand">
+							<div class="navbar-item">
+								<h1 class="title">Try Blang!</h1>
+							</div>
+						</div>
+						<div class="navbar-end">
+							<div class="navbar-item">
+								<p class="code-text">
+									Inconvenience as a first-class value!
+								</p>
+							</div>
+						</div>
+					</div>
+				</header>
+			</div>
+			<div class="hero-body has-background-white fill-max-height">
+				<div class="container fill-max-height ml-0 mr-0" style="width: 100%;">
+					<div id="main">
+						<div class="loading-text-parent">
+							<h1 class="loading-text-centered title">
+								Loading...
+							</h1>
+						</div>
+					</div>
+					<script src="_framework/blazor.webassembly.js"></script>
+				</div>
+			</div>
+		</section>
+	</body>
+</html>

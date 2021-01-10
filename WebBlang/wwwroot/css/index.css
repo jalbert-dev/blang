@@ -1,0 +1,193 @@
+
+/* I am not known for my CSS subtlety */
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('jbm-nf.ttf') format('truetype');
+}
+
+body, html {
+  height: 100%;
+  overflow-y: hidden;
+}
+
+.fill-parent {
+  position: absolute;
+  left: 0px;
+  right: 0px;
+  top: 0px;
+  bottom: 0px;
+}
+
+.flex-backscroll {
+  display: flex;
+  flex-direction: column-reverse;
+  overflow-y: auto;
+}
+
+.ctrl-bordered {
+  border-style: solid;
+  border-radius: 4px;
+  border-width: thin;
+  border-color: #363636;
+}
+
+.ctrl-inside-bordered {
+  border-radius: 4px;
+}
+
+/* fill-max-height class from https://github.com/jgthms/bulma/issues/2704 */
+.fill-max-height {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#eval-box-container {
+  bottom: 0px;
+  position: absolute;
+  width: 100%;
+}
+
+.eval-log-container {
+  top: 0px;
+  bottom: 35px;
+  width: 100%;
+  position: absolute;
+
+  overflow: hidden;
+
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+.eval-log-entry {
+  white-space: pre-line;
+  width: 100%;
+  /* border-left-style: none !important; */
+}
+
+.eval-log-entry-type {
+  /* border-right-style: none !important; */
+}
+
+#repl-input {
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+}
+
+.editor-parent {
+  position: absolute;
+  top: 36px;
+  bottom: 35px;
+  left: 0px;
+  right: 0px;
+}
+
+#file-select-box {
+  border-radius: 0px;
+  border-color: #363636;
+  border-top: none;
+  border-right: solid;
+  border-left: none;
+  border-width: thin;
+}
+
+#load-file-button {
+  border-top: none;
+  border-right: none;
+  border-left: solid;
+  border-radius: 0px;
+  border-width: thin;
+}
+
+#run-multiline-control {
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  right: 0px;
+  left: auto;
+}
+
+#run-multiline-button {
+  border-width: thin;
+  border-radius: 0px;
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+}
+
+#editor-fake-footer {
+  position: absolute;
+  bottom: 0px;
+  top: calc(100% - 35px);
+  left: 0px;
+  right: 0px;
+
+  border-top: solid;
+  border-color: #363636;
+  border-width: thin;
+}
+
+.editor-container {
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  left: 0%;
+  width: 49.9%;
+  overflow: hidden;
+  border-top-right-radius: 0px;
+  border-bottom-right-radius: 0px;
+}
+
+#repl-clear-button {
+  border-top-right-radius: 0px;
+}
+
+.repl-container {
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  left: 50%;
+  width: 50%;
+}
+
+.sensible-font-size {
+  font-size: 0.9rem;
+}
+
+.loading-text-parent {
+  display: flex;
+  justify-content: center;
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  left: 0px;
+  right: 0px;
+}
+.loading-text-centered {
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.editor-wrapper {
+  height: 100%;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.scrolling-table {
+  overflow-y: scroll;
+  width: auto;
+  position: absolute;
+}
+
+.code-text {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+#main {
+  font-family: 'JetBrains Mono', monospace;
+  flex: 1;
+}
