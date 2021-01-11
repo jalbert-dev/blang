@@ -102,7 +102,7 @@ let loadingText id displayText =
     ]
 
 let view model dispatch =
-    div [] [
+    div [attr.``id`` "main"] [
         div [attr.``class`` "editor-container ctrl-bordered m-0"] [
             div [attr.``class`` "field has-addons m-0 p-0 is-fullwidth"] [
                 p [attr.``class`` "control is-expanded"] [
@@ -138,7 +138,7 @@ let view model dispatch =
                 ]
             ]
         ]
-        div [attr.``class`` "repl-container pb-2 pt-1 pl-2 pr-2 code-text"] [
+        div [attr.``class`` "repl-container m-0 code-text"] [
             div [attr.``class`` "ctrl-bordered eval-log-container sensible-font-size"] [
                 div [attr.``class`` "fill-parent flex-backscroll"] [
                     table [attr.``class`` "m-0 table is-hoverable is-bordered is-narrow is-fullwidth scrolling-table ctrl-inside-bordered"] [

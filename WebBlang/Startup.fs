@@ -7,6 +7,6 @@ module Program =
     [<EntryPoint>]
     let Main args =
         let builder = WebAssemblyHostBuilder.CreateDefault(args)
-        builder.RootComponents.Add<Main.MyApp>("#main")
+        builder.RootComponents.Add<Main.MyApp>("#AppRoot")
         builder.Build().RunAsync() |> ignore
         0

@@ -137,7 +137,7 @@ body, html {
   top: 0px;
   bottom: 0px;
   left: 0%;
-  width: 49.9%;
+  right: calc(50% + 8px);
   overflow: hidden;
   border-top-right-radius: 0px;
   border-bottom-right-radius: 0px;
@@ -151,8 +151,8 @@ body, html {
   position: absolute;
   top: 0px;
   bottom: 0px;
-  left: 50%;
-  width: 50%;
+  left: calc(50% + 8px);
+  right: 0px;
 }
 
 .sensible-font-size {
@@ -189,7 +189,23 @@ body, html {
   font-family: 'JetBrains Mono', monospace;
 }
 
-#main {
+#AppRoot {
   font-family: 'JetBrains Mono', monospace;
   flex: 1;
+}
+
+#main {
+  font-family: 'JetBrains Mono', monospace;
+  display: flex;
+}
+
+#main-splitter {
+  width: 8px;
+  position: absolute;
+  top: 0px;
+  bottom: 0px;
+  
+  left: calc(50% - 4px);
+
+  cursor: col-resize;
 }
