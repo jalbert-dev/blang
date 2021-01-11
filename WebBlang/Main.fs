@@ -19,6 +19,9 @@ type Model =
     {
         Output: LogEntryType list
 
+        History: string list
+        CurrentHistory: int
+
         EvalEntryValue: string
 
         ReplState: RuntimeTypes.Scope
@@ -27,6 +30,8 @@ type Model =
 let initModel =
     {
         Output = []
+        History = []
+        CurrentHistory = -1
         EvalEntryValue = ""
         ReplState = RuntimeCore.coreScope
     }
@@ -38,6 +43,8 @@ type Message =
     // actions
     | EvalImmediate
     | ClearLog
+    | HistoryBackward
+    | HistoryForward
 
 let private ( >>= ) a b = Result.bind b a
 let private ( <!> ) a b = Result.map b a
@@ -55,6 +62,16 @@ let private repl input state =
     <!> fun ((value, scope), msgs) ->
             scope, msgs @ [LogResult <| Value.stringify value]
 
+let setHistoryPosition pos model =
+    if List.isEmpty model.History then
+        model
+    else
+        { model with CurrentHistory = pos
+                     EvalEntryValue = if pos >= 0 then
+                                          List.item pos model.History
+                                      else
+                                          "" }
+
 let update message model =
     match message with
     | SetEvalEntryField str ->
@@ -63,6 +80,8 @@ let update message model =
     | EvalImmediate ->
         if model.EvalEntryValue.Length > 0 then
             let echoMsg = LogEcho <| model.EvalEntryValue
+            let model = { model with History = model.EvalEntryValue :: model.History
+                                     CurrentHistory = -1 }
             match repl model.EvalEntryValue model.ReplState with
             | Ok (nextState, msgs) ->
                 { model with Output = model.Output @ (echoMsg :: msgs)
@@ -75,6 +94,11 @@ let update message model =
             model
     | ClearLog ->
         { model with Output = [] }
+    
+    | HistoryBackward ->
+        model |> (setHistoryPosition <| min (model.CurrentHistory + 1) (List.length model.History))
+    | HistoryForward ->
+        model |> (setHistoryPosition <| max (model.CurrentHistory - 1) -1)
 
 let formatLogEntry (msg: LogEntryType) =
     let createEntry (headerClass, headerText) (entryClass, entryText) = [
@@ -158,6 +182,8 @@ let view model dispatch =
                                bind.input.string model.EvalEntryValue (dispatch << SetEvalEntryField)
                                on.keyup <| fun args -> match args.Key with
                                                        | "Enter" -> dispatch EvalImmediate
+                                                       | "ArrowUp" -> dispatch HistoryBackward
+                                                       | "ArrowDown" -> dispatch HistoryForward
                                                        | _ -> ()]
                     ]
                     div [attr.``class`` "control"] [

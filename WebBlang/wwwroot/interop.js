@@ -29,6 +29,7 @@ function createIde() {
             return gutter
         },
         gutterSize: 8,
+        minSize: 240,
         elementStyle: (_, elementSize, gutterSize, index) => {
             if (index === 0) {
                 // "don't do anything besides return the style object in these 
