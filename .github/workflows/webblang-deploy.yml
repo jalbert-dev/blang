@@ -1,0 +1,27 @@
+name: Publish to Github Pages
+on:
+        push:
+                branches: [ main ]
+jobs:
+        publish-deploy:
+                runs-on: ubuntu-latest
+                steps:
+                        - uses: actions/checkout@v2
+
+                        - name: Setup .NET Core
+                          uses: actions/setup-dotnet@v1
+                          with:
+                                dotnet-version: 5.0.102
+
+                        - name: Build and publish
+                          run: dotnet publish ${GITHUB_WORKSPACE}/WebBlang/WebBlang.fsproj -c Release -o build
+
+                        - name: Deploy to Pages
+                          uses: JamesIves/github-pages-deploy-action@3.7.1
+                          with:
+                                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                                BASE_BRANCH: main
+                                BRANCH: gh-pages
+                                FOLDER: build/wwwroot
+                                CLEAN: true
+
