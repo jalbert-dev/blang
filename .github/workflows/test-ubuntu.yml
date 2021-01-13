@@ -1,0 +1,32 @@
+name: .NET
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-linux:
+    
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cfg: [Debug, Release]
+
+    steps:
+    - uses: actions/checkout@v2
+      
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.102
+        
+    - name: Restore dependencies
+      run: dotnet restore
+      
+    - name: Build tests in release config
+      run: dotnet build Blang.Tests -c ${{ matrix.cfg }} --no-restore
+      
+    - name: Execute tests in release config
+      run: dotnet test Blang.Tests -c ${{ matrix.cfg }} --no-build --verbosity normal
