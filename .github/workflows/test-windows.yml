@@ -1,4 +1,4 @@
-name: Test CI (Ubuntu)
+name: Test CI (Windows)
 
 on:
   push:
@@ -7,9 +7,9 @@ on:
     branches: [ main ]
 
 jobs:
-  test-linux:
+  test-windows:
     
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     strategy:
       matrix:
         cfg: [Debug, Release]
@@ -21,6 +21,9 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: 5.0.102
+    
+    - name: Clean mess (https://github.com/actions/setup-dotnet/issues/155)
+      run: dotnet clean -c ${{ matrix.cfg }} && dotnet nuget locals all --clear
         
     - name: Restore dependencies
       run: dotnet restore
