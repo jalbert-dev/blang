@@ -1,4 +1,4 @@
-name: .NET
+name: Test CI (Ubuntu)
 
 on:
   push:
