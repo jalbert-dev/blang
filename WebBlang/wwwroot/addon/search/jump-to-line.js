@@ -49,5 +49,5 @@
     });
   };
 
-  CodeMirror.keyMap["default"]["Alt-G"] = "jumpToLine";
+  CodeMirror.keyMap["default"]["Ctrl-G"] = "jumpToLine";
 });

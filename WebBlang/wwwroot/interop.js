@@ -10,7 +10,8 @@ function createIde() {
         {
             lineNumbers: true,
             matchBrackets: true,
-            autoCloseBrackets: "()\"\"",
+            autoCloseBrackets: true,
+            styleActiveLine: true,
         });
 
     IDE.getWrapperElement().classList.add("editor-wrapper");
