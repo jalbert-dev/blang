@@ -8,7 +8,9 @@ function createIde() {
     IDE = CodeMirror.fromTextArea(
         document.getElementById("editor-textarea"),
         {
-            lineNumbers: true
+            lineNumbers: true,
+            matchBrackets: true,
+            autoCloseBrackets: "()\"\"",
         });
 
     IDE.getWrapperElement().classList.add("editor-wrapper");
@@ -22,7 +24,7 @@ function createIde() {
 
     Split([".editor-container", ".repl-container"], { 
         minSize: 0,
-        gutter: (index, direction) => {
+        gutter: (_, direction) => {
             const gutter = document.createElement('div')
             gutter.id = "main-splitter"
             gutter.className = `gutter gutter-${direction}`
@@ -47,11 +49,8 @@ function createIde() {
                 return { 'left': `calc(${100 - elementSize}% + ${gutterSize}px)` }
             }
         },
-        gutterStyle: (_, gutterSize, __) => {
-            console.log(gutterSize)
-            return {
-                'width': '8px'
-            }
+        gutterStyle: (_, __, ___) => {
+            return { 'width': '8px' }
         }
     });
 }
