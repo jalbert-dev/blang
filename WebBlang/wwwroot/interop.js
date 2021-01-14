@@ -12,6 +12,7 @@ function createIde() {
             matchBrackets: true,
             autoCloseBrackets: true,
             styleActiveLine: true,
+            mode: "blang",
         });
 
     IDE.getWrapperElement().classList.add("editor-wrapper");
