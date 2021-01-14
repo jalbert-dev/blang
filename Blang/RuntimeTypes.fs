@@ -53,5 +53,9 @@ type Scope =
       /// Failed lookups in most cases should fall back to the enclosing scope.
       SymbolTable: Map<string, Value> }
 
+type ValueDef =
+    | Immediate of Value
+    | NeedsEval of Value * Scope
+
 type SideEffect =
     | BindLocalValue of string * Value

@@ -8,8 +8,12 @@ let private ( >>= ) a b = Result.bind b a
 let private ( <!> ) a b = Result.map b a
 let private ( >>! ) a b = Result.mapError b a
 
-type NativeFunc = (Scope -> Value -> Result<Value * SideEffect list, EvalError>) -> Scope -> Value list -> Result<Value * SideEffect list, EvalError>
+type NativeFunc = Scope -> Value list -> Result<ValueDef * SideEffect list, EvalError>
 type NativeFuncMap = Map<string, NativeFunc>
+
+type private ExecDef =
+    | NativeCall of NativeFunc * Value list * Scope
+    | UserCall of Value list * Scope
 
 let (|ExprValueType|_|) = function
     | { Value.Type = Expression x } -> Some x
@@ -82,7 +86,7 @@ let private evaluateFunctionWithDef (nativeFuncs: NativeFuncMap)
 
         let execNativeFunc f =
             evalArgs ()
-            >>= fun (args, scope) -> f evaluator scope args
+            >>= fun (args, scope) -> f scope args
             >>! wrapFuncEvalError identifier functionStartPosition
         
         identifier
@@ -110,4 +114,8 @@ let rec evaluateValue (nativeFuncs: NativeFuncMap)
 
         evaluateValueSingleWithSideEffects' funcIdent
         >>= evaluateFunctionWithDef' funcIdent.Position args
+        >>= function
+            | (Immediate value, sideEffects) -> Ok (value, sideEffects)
+            | (NeedsEval (toEval, scope), []) -> evaluateValue nativeFuncs scope toEval
+            | (NeedsEval _, _) -> failwith "Native functions can't return values needing evaluation AND side effects!!"
     | _ -> Ok (value, [])
