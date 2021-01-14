@@ -1,6 +1,9 @@
 module Blang.RuntimeTypes
 
-open System.Collections.Generic
+[<Literal>]
+let NATIVEFUNC_SIG = "n"
+[<Literal>]
+let USERFUNC_SIG = "u"
 
 type LineInfo =
     { Line: int

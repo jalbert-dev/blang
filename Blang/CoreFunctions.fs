@@ -10,6 +10,10 @@ let private ( <!> ) a b = Result.map b a
 let private ( >>! ) a b = Result.mapError b a
 let private ( >=> ) f g arg = f arg >>= g
 
+let private boolToResult err = function
+    | true  -> Ok ()
+    | false -> Error err
+
 let private isNumber x = expectNumber x <!> ignore
 let private isString x = expectString x <!> ignore
 let private isSymbol x = expectSymbol x <!> ignore
@@ -17,6 +21,12 @@ let private isExpr x = expectExpression x <!> ignore
 let private isQuoteExpr = function
     | { Value.Type = Expression (h::_) } when h.Type = SymbolAtom "'" -> Ok ()
     | _ -> Error { EvalError.Type = ExpectedValue; Position = None }
+let private isHomogeneousList predicate err = 
+    let rec loop = function
+        | [] -> Ok ()
+        | h::t ->
+            h |> predicate >>! err >>= fun _ -> loop t
+    expectExpression >=> loop
 let private isAnyValue _ = Ok ()
 
 let private expectArgList typeCheckList args =
@@ -34,14 +44,14 @@ let private expectArgList typeCheckList args =
 
 let private wrapBinaryOp op _ _ (args: Value list) =
     args |> expectArgList [
-        isNumber;
+        isNumber
         isNumber ]
     <!> fun args -> 
             (op (unwrapAtomNum args.[0]) (unwrapAtomNum args.[1]) |> NumberAtom |> Value.createAnon), []
 
 let private numberEquals _ _ (args: Value list) =
     args |> expectArgList [
-        isNumber;
+        isNumber
         isNumber ]
     <!> fun args ->
             NumberAtom (if abs ((unwrapAtomNum args.[0]) - (unwrapAtomNum args.[1])) < 0.0000001  then
@@ -57,7 +67,7 @@ let private unwrapQuote = function
 let withNoSideEffects f x = (f x, [])
 
 let private quote _ _ args =
-    args |> expectArgList [isAnyValue] <!> List.head <!> withNoSideEffects id
+    args |> expectArgList [ isAnyValue ] <!> List.head <!> withNoSideEffects id
 let private list _ _ args =
     args |> (Expression >> Value.createAnon) |> withNoSideEffects id |> Ok
 let private eval evaluator scope args =
@@ -74,19 +84,39 @@ let private ifExpression _ _ args =
                 2
         args.[whichBranch], []
 
-let private bindValue _ scope args =
+let private bindValue _ _ args =
     args |> expectArgList [
-        isSymbol;
+        isSymbol
         isAnyValue ]
     <!> fun args ->
             (args.[1], [BindLocalValue (unwrapAtomSymbol args.[0], args.[1])])
+
+let private makeFunction _ _ args =
+    args |> expectArgList [
+        isHomogeneousList isSymbol id
+        isExpr ]
+    >>= fun args ->
+            list () () (Value.createAnon (StringAtom USERFUNC_SIG) :: args)
+
+let private bindFunction _ _ args =
+    args |> expectArgList [
+        isSymbol
+        isHomogeneousList isSymbol id
+        isExpr ]
+    >>= fun args ->
+            // pass the latter two args to makeFunction
+            makeFunction () () args.[1..]
+            // then let bindValue bind the resulting Blang function to the given name
+            >>= fun (f, _) -> bindValue () () [ args.[0]; f ]
 
 let functionMap : Evaluator.NativeFuncMap =
     Map <| seq {
         yield "'", quote
         yield "[]", list
         yield "eval", eval
+        yield "make-function", makeFunction
         yield "bind-value", bindValue
+        yield "bind-function", bindFunction
         
         yield "+", wrapBinaryOp ( + );
         yield "-", wrapBinaryOp ( - );
@@ -100,9 +130,9 @@ let functionMap : Evaluator.NativeFuncMap =
 
 let coreScope : Scope =
     let nativeFunctionBinding id _ =
-            Expression [
-                StringAtom "n" |> Value.createAnon; 
-                StringAtom id |> Value.createAnon] 
-            |> Value.createAnon
+        Expression [
+            StringAtom NATIVEFUNC_SIG |> Value.createAnon
+            StringAtom id |> Value.createAnon] 
+        |> Value.createAnon
     { Scope.create None with SymbolTable = functionMap
                                            |> Map.map nativeFunctionBinding }

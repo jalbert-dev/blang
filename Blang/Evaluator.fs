@@ -19,7 +19,7 @@ let (|StringValueType|_|) = function
     | _ -> None
 
 let (|NativeFuncDef|_|) = function
-    | ExprValueType [StringValueType "n"; StringValueType funcId] -> Some funcId
+    | ExprValueType [StringValueType NATIVEFUNC_SIG; StringValueType funcId] -> Some funcId
     | _ -> None
 
 let private expectFunctionIdentifier value =
