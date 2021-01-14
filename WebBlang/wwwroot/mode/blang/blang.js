@@ -10,6 +10,7 @@
   
   CodeMirror.defineSimpleMode("blang", {
       start: [
+          {regex: /(?:bind-value|bind-function|eval|'|\[\]|\+|-|\/|\*|%|=|mod|if)/, token: "atom"},
           {regex: /#.*$/, token: "comment"},
           {regex: /\d+\.?|[-+]?(?:\.\d+\.?|\d+\.?\d*)/, token: "number"},
           {regex: /"/, token: "string", next: "string"},
