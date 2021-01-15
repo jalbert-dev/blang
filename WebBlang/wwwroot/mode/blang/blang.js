@@ -7,18 +7,24 @@
       mod(CodeMirror);
   })(function(CodeMirror) {
   "use strict";
+
+  function createMainState(parenCssName, parentCssName, cycleNext) {
+    return [
+      {regex: /(?:bind-value|bind-function|eval|'|\[\]|\+|-|\/|\*|%|=|mod|if)/, token: "atom"},
+      {regex: /#.*$/, token: "comment"},
+      {regex: /\d+\.?|[-+]?(?:\.\d+\.?|\d+\.?\d*)/, token: "number"},
+      {regex: /"/, token: "string", push: "string"},
+      {regex: /\(/, token: parenCssName, push: cycleNext},
+      {regex: /\)/, token: parentCssName, pop: true},
+    ]
+  }
   
   CodeMirror.defineSimpleMode("blang", {
-      start: [
-          {regex: /(?:bind-value|bind-function|eval|'|\[\]|\+|-|\/|\*|%|=|mod|if)/, token: "atom"},
-          {regex: /#.*$/, token: "comment"},
-          {regex: /\d+\.?|[-+]?(?:\.\d+\.?|\d+\.?\d*)/, token: "number"},
-          {regex: /"/, token: "string", next: "string"},
-          {regex: /\(/, token: "bracket"},
-          {regex: /\)/, token: "bracket"},
-      ],
+      start: createMainState("parens-1", "parens-3", "start2"),
+      start2: createMainState("parens-2", "parens-1", "start3"),
+      start3: createMainState("parens-3", "parens-2", "start"),
       string: [
-        {regex: /.*?"/, token: "string", next: "start"},
+        {regex: /.*?"/, token: "string", pop: true},
         {regex: /.*/, token: "string"},
       ],
       meta: {
