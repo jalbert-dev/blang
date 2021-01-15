@@ -209,3 +209,7 @@ body, html {
 
   cursor: col-resize;
 }
+
+.cm-s-default .cm-parens-1 {color: #00f;}
+.cm-s-default .cm-parens-2 {color: #a11;}
+.cm-s-default .cm-parens-3 {color: #085;}
