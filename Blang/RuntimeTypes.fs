@@ -56,6 +56,7 @@ type Scope =
 type ValueDef =
     | Immediate of Value
     | NeedsEval of Value * Scope
+    | NeedsUserEval of Value * Scope
 
 type SideEffect =
     | BindLocalValue of string * Value

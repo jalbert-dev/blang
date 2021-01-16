@@ -79,7 +79,7 @@ let private evaluateValueSingleWithSideEffects evaluator stackTrace startScope v
 // Helper function to parse function definitions and return any
 // information needed to perform the function call.
 let private prepareFuncCall nativeFuncLookup
-                            (evaluator: Value list -> Scope -> Value -> Result<Value * SideEffect list, EvalError * Value list>)
+                            evaluator
                             stackTrace
                             args 
                             (funcDef, evaluationScope) =
@@ -135,7 +135,7 @@ let evaluateValue (nativeFuncs: NativeFuncMap)
                   (rootScope: Scope)
                   (rootValue: Value)
                   : Result<Value * SideEffect list, EvalError> =
-    let rec loop stackTrace scope (value: Value) : Result<Value * SideEffect list, EvalError * Value list>  =
+    let rec loop allowReturnedSideEffects stackTrace scope (value: Value) =
         // Expressions need to be evaluated as a function, Symbols need to be looked up, everything else passes through
         match value.Type with
         | SymbolAtom _ -> lookupSymbolValue scope value >>! (fun x -> x, stackTrace) <!> fun x -> x, []
@@ -143,27 +143,33 @@ let evaluateValue (nativeFuncs: NativeFuncMap)
         | Expression (funcIdent::args) ->
             let stackTrace = funcIdent :: stackTrace
             let nativeFuncLookup x = lookupNativeFunc nativeFuncs value.Position x >>! (fun x -> x, stackTrace)
-            let prepareFuncCall' = prepareFuncCall nativeFuncLookup loop stackTrace
-            let evaluateValueSingleWithSideEffects' = evaluateValueSingleWithSideEffects loop stackTrace scope
+            let prepareFuncCall' = prepareFuncCall nativeFuncLookup (loop true) stackTrace
+            let evaluateValueSingleWithSideEffects' = evaluateValueSingleWithSideEffects (loop true) stackTrace scope
 
             evaluateValueSingleWithSideEffects' funcIdent
             >>= prepareFuncCall' args
             >>= function
                 | NativeCall (f, evaledArgs, scope) -> 
                     f scope evaledArgs >>! (fun x -> x, stackTrace)
+                    <!> fun (value, sideEffects) -> 
+                            if not allowReturnedSideEffects then
+                                value, []
+                            else
+                                value, sideEffects
                 | UserCall (functionBody, scope) ->
                     let ( <!> ) = Result.map
                     let rec evalFunctionBody scope = function
                         | [] -> (Immediate Parser.unitValue, []) |> Ok
-                        | [lastExpr] -> (NeedsEval (lastExpr, scope), []) |> Ok
+                        | [lastExpr] -> (NeedsUserEval (lastExpr, scope), []) |> Ok
                         | h::t ->
-                            evaluateValueSingleWithSideEffects loop stackTrace scope h
+                            evaluateValueSingleWithSideEffects (loop true) stackTrace scope h
                             >>= fun (_, newScope) -> evalFunctionBody newScope t
                     evalFunctionBody scope functionBody
             >>= function
                 | (Immediate value, sideEffects) -> Ok (value, sideEffects)
-                | (NeedsEval (toEval, scope), []) -> loop stackTrace scope toEval
-                | (NeedsEval _, _) -> failwith "Functions can't return values needing evaluation AND side effects!!"
+                | (NeedsEval (toEval, scope), []) -> loop true stackTrace scope toEval
+                | (NeedsUserEval (toEval, scope), []) -> loop false stackTrace scope toEval
+                | _ -> failwith "Functions can't return values needing evaluation AND side effects!!"
         | _ -> Ok (value, [])
     let flattenStackTrace (terminalError, stackTrace) =
         let getStackInfo = function
@@ -178,5 +184,5 @@ let evaluateValue (nativeFuncs: NativeFuncMap)
                     Position = pos }
         rv
 
-    loop [] rootScope rootValue 
+    loop true [] rootScope rootValue 
     >>! flattenStackTrace

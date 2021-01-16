@@ -51,6 +51,7 @@ let private wrapBinaryOp op _ (args: Value list) =
             |> NumberAtom 
             |> Value.createAnon
             |> Immediate, []
+let private wrapComparison op = wrapBinaryOp (fun x y -> op x y |> function | true -> 1.0 | false -> 0.0)
 
 let private numberEquals _ (args: Value list) =
     args |> expectArgList [
@@ -123,7 +124,11 @@ let functionMap : Evaluator.NativeFuncMap =
         yield "bind-value", bindValue
         yield "bind-function", bindFunction
         
-        yield "<", wrapBinaryOp (fun x y -> x < y |> function | true -> 1.0 | _ -> 0.0 );
+        yield "<", wrapComparison ( < );
+        yield "<=", wrapComparison ( <= );
+        yield ">", wrapComparison ( > );
+        yield ">=", wrapComparison ( >= );
+
         yield "+", wrapBinaryOp ( + );
         yield "-", wrapBinaryOp ( - );
         yield "*", wrapBinaryOp ( * );
