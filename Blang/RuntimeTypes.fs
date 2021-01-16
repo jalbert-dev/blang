@@ -1,6 +1,9 @@
 module Blang.RuntimeTypes
 
-open System.Collections.Generic
+[<Literal>]
+let NATIVEFUNC_SIG = "n"
+[<Literal>]
+let USERFUNC_SIG = "u"
 
 type LineInfo =
     { Line: int
@@ -49,6 +52,11 @@ type Scope =
       /// A Scope's symbol table names values accessible within that scope.
       /// Failed lookups in most cases should fall back to the enclosing scope.
       SymbolTable: Map<string, Value> }
+
+type ValueDef =
+    | Immediate of Value
+    | NeedsEval of Value * Scope
+    | NeedsUserEval of Value * Scope
 
 type SideEffect =
     | BindLocalValue of string * Value
