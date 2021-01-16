@@ -19,6 +19,8 @@ let (|AtomicValue|_|) = function
     | Number x -> Some (NumberAtom x)
     | String x -> Some (StringAtom x)
     | Symbol x -> Some (SymbolAtom x)
+    | QuotedSymbol x -> Some (Expression [SymbolAtom "'" |> Value.createAnon
+                                          SymbolAtom x |> Value.createAnon])
     | _ -> None
 
 let rec private parseExpr (producerState, produceToken: 'a -> Result<Token * 'a, EvalError>) position exprBodyAcc =
@@ -36,6 +38,11 @@ and private parseVal token (producerState, produceToken) =
     | EOF -> (unitValue, producerState) |> Ok
     | AtomicValue x -> (x |> Value.createWithPosition token.Position, producerState) |> Ok
     | LParen -> parseExpr (producerState, produceToken) token.Position []
+    | QuotedLParen ->
+        parseExpr (producerState, produceToken) token.Position []
+        <!> fun (expr, state) -> 
+                Expression [SymbolAtom "'" |> Value.createAnon; expr]
+                |> Value.createAnon, state
     | _ -> Error (createError (UnexpectedToken token.Type) (Some token.Position))
 
 let parse (tokenizerStartState: 'a, tokenProducer: TokenProducer<'a>) : Result<Value * 'a, EvalError> = 
