@@ -5,6 +5,9 @@ open Bolero
 open Bolero.Html
 open Bolero.Templating.Client
 
+open Microsoft.JSInterop
+open Bolero.Remoting.Client
+
 open Blang
 
 type LogEntryType =
@@ -42,6 +45,8 @@ type Message =
 
     // actions
     | EvalImmediate
+    | EvalMultiline
+    | DoEvalMultiline of string
     | ClearLog
     | HistoryBackward
     | HistoryForward
@@ -62,6 +67,18 @@ let private repl input state =
     <!> fun ((value, scope), msgs) ->
             scope, msgs @ [LogResult <| Value.stringify value]
 
+let private evalScript input state =
+    let rec loop lexer state =
+        Parser.parse (lexer, Lexer.next)
+        >>= fun (value, rest) ->
+                Runtime.evaluate state value
+                >>= fun (lastValue, scope) ->
+                        if Lexer.atEof rest then
+                            Ok (scope, [LogResult <| Value.stringify lastValue])
+                        else
+                            loop rest scope
+    loop (Lexer.create input) state
+
 let setHistoryPosition pos model =
     if List.isEmpty model.History then
         model
@@ -72,10 +89,10 @@ let setHistoryPosition pos model =
                                       else
                                           "" }
 
-let update message model =
+let update (js: IJSRuntime) message model =
     match message with
     | SetEvalEntryField str ->
-        { model with EvalEntryValue = str }
+        { model with EvalEntryValue = str }, []
 
     | EvalImmediate ->
         if model.EvalEntryValue.Length > 0 then
@@ -86,19 +103,31 @@ let update message model =
             | Ok (nextState, msgs) ->
                 { model with Output = model.Output @ (echoMsg :: msgs)
                              ReplState = nextState
-                             EvalEntryValue = "" }
+                             EvalEntryValue = "" }, []
             | Error err ->
                 { model with Output = model.Output @ [echoMsg; LogError <| sprintf "%A" err]
-                             EvalEntryValue = "" }
+                             EvalEntryValue = "" }, []
         else
-            model
+            model, []
+
+    | EvalMultiline ->
+        model, Cmd.OfJS.perform js "getMultilineScriptText" [||] DoEvalMultiline
+    | DoEvalMultiline str ->
+        let echoMsg = LogEcho "{ script }"
+        match evalScript str model.ReplState with
+        | Ok (nextState, msgs) ->
+            { model with Output = model.Output @ (echoMsg :: msgs)
+                         ReplState = nextState }, []
+        | Error err ->
+            { model with Output = model.Output @ [echoMsg; LogError <| sprintf "%A" err] }, []
+
     | ClearLog ->
-        { model with Output = [] }
+        { model with Output = [] }, []
     
     | HistoryBackward ->
-        model |> (setHistoryPosition <| min (model.CurrentHistory + 1) (List.length model.History))
+        model |> (setHistoryPosition <| min (model.CurrentHistory + 1) (List.length model.History)), []
     | HistoryForward ->
-        model |> (setHistoryPosition <| max (model.CurrentHistory - 1) -1)
+        model |> (setHistoryPosition <| max (model.CurrentHistory - 1) -1), []
 
 let formatLogEntry (msg: LogEntryType) =
     let createEntry (headerClass, headerText) (entryClass, entryText) = [
@@ -148,7 +177,8 @@ let view model dispatch =
 
             div [attr.``class`` "container m-0 p-0 editor-parent"] [
                 loadingText "editor-loading" "Loading editor..."
-                textarea [attr.``id`` "editor-textarea"; attr.``style`` "display: none;"] []
+                textarea [attr.``id`` "editor-textarea"
+                          attr.``style`` "display: none;"] []
             ]
 
             div [attr.``id`` "editor-fake-footer"
@@ -158,6 +188,7 @@ let view model dispatch =
                     button [
                         attr.``id`` "run-multiline-button"
                         attr.``class`` "button is-outlined is-dark sensible-font-size"
+                        on.click <| fun _ -> dispatch EvalMultiline
                     ] [text "Run"]
                 ]
             ]
@@ -211,7 +242,7 @@ type MyApp() =
 
 
     override this.Program =
-        Program.mkSimple (fun _ -> initModel) update view
+        Program.mkProgram (fun _ -> initModel, []) (update this.JSRuntime) view
     
     override this.OnAfterRenderAsync (firstRender: bool) =
         let js = this.JSRuntime

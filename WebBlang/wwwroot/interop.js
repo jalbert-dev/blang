@@ -4,6 +4,11 @@ function updateTextArea(instance, _) {
     instance.save();
 }
 
+function getMultilineScriptText() {
+    IDE.save();
+    return document.getElementById("editor-textarea").value;
+}
+
 function createIde() {
     IDE = CodeMirror.fromTextArea(
         document.getElementById("editor-textarea"),
