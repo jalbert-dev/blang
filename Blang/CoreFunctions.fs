@@ -123,6 +123,7 @@ let functionMap : Evaluator.NativeFuncMap =
         yield "bind-value", bindValue
         yield "bind-function", bindFunction
         
+        yield "<", wrapBinaryOp (fun x y -> x < y |> function | true -> 1.0 | _ -> 0.0 );
         yield "+", wrapBinaryOp ( + );
         yield "-", wrapBinaryOp ( - );
         yield "*", wrapBinaryOp ( * );

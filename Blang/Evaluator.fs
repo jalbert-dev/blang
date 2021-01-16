@@ -18,7 +18,7 @@ type NativeFuncMap = Map<string, NativeFunc>
 
 type private ExecDef =
     | NativeCall of NativeFunc * Value list * Scope
-    //| UserCall of Value list * Scope
+    | UserCall of Value list * Scope
 
 let (|ExprValueType|_|) = function
     | { Value.Type = Expression x } -> Some x
@@ -27,9 +27,13 @@ let (|StringValueType|_|) = function
     | { Value.Type = StringAtom x } -> Some x
     | _ -> None
 
-let (|NativeFuncDef|_|) = function
-    | ExprValueType [StringValueType NATIVEFUNC_SIG; StringValueType funcId] -> Some funcId
-    | _ -> None
+let (|NativeFuncDef|UserFuncDef|InvalidFuncDef|) = function
+    | ExprValueType [StringValueType NATIVEFUNC_SIG; StringValueType funcId] -> NativeFuncDef funcId
+    | ExprValueType [StringValueType USERFUNC_SIG
+                     ExprValueType paramNames
+                     ExprValueType funcBody] -> UserFuncDef (paramNames, funcBody)
+    | _ -> InvalidFuncDef
+
 
 let private expectFunctionIdentifier value =
     expectSymbol value >>! fun _ -> { EvalError.Type = FunctionIdentifierMustBeSymbol value.Type
@@ -79,9 +83,10 @@ let private prepareFuncCall nativeFuncLookup
                             stackTrace
                             args 
                             (funcDef, evaluationScope) =
+    let ( <!> ) = Result.map
+
     match funcDef with
     | NativeFuncDef identifier ->
-        let ( <!> ) = Result.map
         let evalArgs () =
             // For now, quote function is special-cased to not evaluate its args
             if identifier = "'" then
@@ -92,9 +97,34 @@ let private prepareFuncCall nativeFuncLookup
         fun f (args, scope) -> NativeCall (f, args, scope)
         <!> nativeFuncLookup identifier
         <*> evalArgs ()
-        
-    | _ -> Error ({ EvalError.Type = InvalidFunctionDefinition funcDef.Type
-                    Position = None}, [])
+    
+    | UserFuncDef (paramNames, funcBody) ->
+        let ( <!!> ) f = Result.bind <| fun (a, b) -> Ok (f a b)
+
+        let bindArgsToNames args scope names =
+            List.zip names args
+            |> List.map BindLocalValue
+            |> List.fold applySideEffect scope
+
+        let expectSymbolList values = invertResultList [] expectSymbol values
+
+        let evalScope () =
+            bindArgsToNames 
+            <!!> evaluateValueListWithSideEffects evaluator stackTrace evaluationScope args
+            <*> (expectSymbolList paramNames >>! fun x -> x, stackTrace)
+
+        let expectedNumArgs = List.length paramNames
+        let actualNumArgs = List.length args
+        if expectedNumArgs <> actualNumArgs then
+            Error ({ EvalError.Type = WrongNumberOfSuppliedArguments (actualNumArgs, expectedNumArgs)
+                     Position = None }, stackTrace)
+        else
+            fun a b -> UserCall (a, b)
+            <!> (funcBody |> Ok)
+            <*> evalScope ()
+
+    | InvalidFuncDef -> Error ({ EvalError.Type = InvalidFunctionDefinition funcDef.Type
+                                 Position = None}, [])
 
 /// Evaluates the given value within the given scope, and returns a Result
 /// containing either a tuple of the resulting value and a list of side effects,
@@ -121,6 +151,15 @@ let evaluateValue (nativeFuncs: NativeFuncMap)
             >>= function
                 | NativeCall (f, evaledArgs, scope) -> 
                     f scope evaledArgs >>! (fun x -> x, stackTrace)
+                | UserCall (functionBody, scope) ->
+                    let ( <!> ) = Result.map
+                    let rec evalFunctionBody scope = function
+                        | [] -> (Immediate Parser.unitValue, []) |> Ok
+                        | [lastExpr] -> (NeedsEval (lastExpr, scope), []) |> Ok
+                        | h::t ->
+                            evaluateValueSingleWithSideEffects loop stackTrace scope h
+                            >>= fun (_, newScope) -> evalFunctionBody newScope t
+                    evalFunctionBody scope functionBody
             >>= function
                 | (Immediate value, sideEffects) -> Ok (value, sideEffects)
                 | (NeedsEval (toEval, scope), []) -> loop stackTrace scope toEval
@@ -130,7 +169,8 @@ let evaluateValue (nativeFuncs: NativeFuncMap)
         let getStackInfo = function
             | { Value.Type = StringAtom x; Position = y } -> x, y
             | { Value.Type = SymbolAtom x; Position = y } -> x, y
-            | _ -> "[invalid stack trace]", None
+            | { Value.Type = Expression _; Position = y } -> "[anonymous function expression]", y
+            | { Position = y } -> "[invalid function definition]", y
         let mutable rv = terminalError
         for err in stackTrace do
             let (msg, pos) = getStackInfo err
