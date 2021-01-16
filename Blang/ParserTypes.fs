@@ -4,7 +4,9 @@ type TokenType =
     | Number of double
     | String of string
     | Symbol of string
+    | QuotedSymbol of string
     | LParen
+    | QuotedLParen
     | RParen
     | EOF
 
