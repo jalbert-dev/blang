@@ -52,6 +52,13 @@ let expectSymbol expected lexer =
             | _ -> false @>
     rest
 
+let expectQuotedSymbol expected lexer =
+    let (token, rest) = expectOkLex lexer
+    test <@ match token.Type with
+            | QuotedSymbol actual -> actual = expected 
+            | _ -> false @>
+    rest
+
 let expectTokenType expected lexer =
     let (token, rest) = expectOkLex lexer
     test <@ token.Type = expected @>
@@ -231,7 +238,10 @@ let fuzzSymbolCharaSet =
 let fuzzSymbolStarterCharaSet =
     fuzzSymbolCharaSet
     |> Gen.filter (fun str ->
-        not <| Seq.contains str (seq { for c in '0'..'9' -> string c }))
+        not <| Seq.contains str (seq {
+            for c in '0'..'9' -> string c
+            yield "'"
+        }))
 
 let fuzzStringGen minLength maxLength =
     gen {
@@ -455,3 +465,43 @@ let [<Fact>] ``test case: simple s-expression`` () =
     |> expectTokenType RParen
     |> expectTokenType RParen
     |> expectTokenType EOF
+
+let [<Fact>] ``apostrophe before an lparen lexes as a quoted lparen`` () =
+    create "'(" |> expectTokenType QuotedLParen |> expectTokenType EOF
+
+let [<Fact>] ``apostrophe with space before lparen lexes as symbol before lparen`` () =
+    create "' (" |> expectTokenType (Symbol "'") |> expectTokenType LParen |> expectTokenType EOF
+
+let [<Fact>] ``lone apostrophe lexes as symbol`` () =
+    create "'" |> expectTokenType (Symbol "'") |> expectTokenType EOF
+
+let [<Fact>] ``apostrophe before symbol lexes as quoted symbol`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (fuzzSymbolArb 0 64)
+            (fun str ->
+                create (sprintf "'%s" str)
+                |> expectQuotedSymbol str
+                |> ignore))
+
+let [<Fact>] ``apostrophe with space before symbol lexes as two symbols`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (fuzzSymbolArb 0 64)
+            (fun str ->
+                create (sprintf "' %s" str)
+                |> expectSymbol "'"
+                |> expectSymbol str
+                |> ignore))
+
+let [<Fact>] ``two apostrophes before lparen lexes as quoted apostrophe symbol then lparen`` () =
+    create "''(" |> expectTokenType (QuotedSymbol "'") |> expectTokenType LParen |> expectTokenType EOF
+
+let [<Fact>] ``two apostrophes before symbol lexes as quoted symbol starting with apostrophe`` () =
+    Check.QuickThrowOnFailure
+        (Prop.forAll
+            (fuzzSymbolArb 0 64)
+            (fun str ->
+                create (sprintf "''%s" str)
+                |> expectQuotedSymbol ("'" + str)
+                |> ignore))

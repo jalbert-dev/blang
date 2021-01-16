@@ -32,6 +32,7 @@ let Expression = Expression >> createValueAt00
 let NumberAtom = NumberAtom >> createValueAt00
 let StringAtom = StringAtom >> createValueAt00
 let SymbolAtom = SymbolAtom >> createValueAt00
+let withNonePos v = { v with Value.Position = None }
 
 let expectParseValue tokenList (expectedValue: Value) =
     test <@ match tokenList |> (tokenSourceFromList >> parse) with
@@ -132,6 +133,35 @@ let [<Fact>] ``parse of multiple nested subexprs`` () =
         Expression [
             SymbolAtom "3";
             SymbolAtom "4"]]
+
+let [<Fact>] ``parse of quoted symbol returns that symbol in a quote expression`` () =
+    [QuotedSymbol "spooky-symbol"] 
+    => 
+    Expression [ SymbolAtom "'" |> withNonePos; SymbolAtom "spooky-symbol" |> withNonePos ]
+
+let [<Fact>] ``parse of quoted expression returns that expression nested in a quote expression`` () =
+    [QuotedLParen;
+        Symbol "+";
+        Number 2.0;
+        LParen;
+            Symbol "*";
+            Number 3.0;
+            Number -5.2;
+        RParen;
+    RParen]
+    =>
+    (Expression [
+        SymbolAtom "'" |> withNonePos;
+        Expression [
+            SymbolAtom "+";
+            NumberAtom 2.0;
+            Expression [
+                SymbolAtom "*";
+                NumberAtom 3.0;
+                NumberAtom -5.2;
+            ]
+        ]
+    ] |> withNonePos)
 
 // Checking that long expressions don't overflow the stack is kind of
 // pointless in Debug configuration, since AFAIK tail call optimizations

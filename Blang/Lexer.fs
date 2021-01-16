@@ -117,6 +117,20 @@ let private lexAmbiguousMinus atMinusState =
     // "-[_]" = start of symbol
     | _ -> lexSymbol  atMinusState
 
+let private lexAmbiguousApostrophe atApostropheState =
+    match atApostropheState |> moveNext with
+    | LexerFinished _ -> lexSymbol atApostropheState
+    // "'(" = start of quoted expression
+    | MatchChar('(') rest -> Ok (QuotedLParen, rest)
+    // "'some-symbol..." = start of quoted expression
+    | PeekBy(isValidSymbolStarter) rest -> 
+        Result.map <| fun (tokType, rest) ->
+                        match tokType with
+                        | Symbol x -> QuotedSymbol x, rest
+                        | _ -> failwith ""
+                   <| (rest |> lexSymbol)
+    | _ -> lexSymbol atApostropheState
+
 let rec next (lexer: LexState) : Result<Token * LexState, EvalError> =
     let emit tok pos next = (createToken pos tok, next) |> Ok
     let emitFromTuple pos (tok, next) = emit tok pos next
@@ -127,6 +141,7 @@ let rec next (lexer: LexState) : Result<Token * LexState, EvalError> =
     // reserved characters
     | MatchChar('(') rest -> rest |> emit LParen lexer.Position
     | MatchChar(')') rest -> rest |> emit RParen lexer.Position
+    | PeekChar(''') rest -> rest |> lexAmbiguousApostrophe >>= emitFromTuple lexer.Position
     // comments/whitespace
     | MatchChar('#') rest -> rest |> eatUntilNewline |> next
     | MatchBy(isWhitespace) rest -> rest |> next
