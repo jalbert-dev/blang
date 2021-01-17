@@ -13,7 +13,6 @@ type EvalErrorType =
     | ExpectedValue
 
     // eval errors
-    | FunctionIdentifierMustBeSymbol of RuntimeTypes.ValueType
     | ExpectedNumber of RuntimeTypes.ValueType
     | ExpectedSymbol of RuntimeTypes.ValueType
     | ExpectedString of RuntimeTypes.ValueType
