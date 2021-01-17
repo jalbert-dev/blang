@@ -203,10 +203,46 @@ let [<Fact>] ``bind-function creates a function bound to a name in the caller's 
     bindFunctionExpr ("f", ["x"; "y"], body)
     =>. (expected, ["f", expected])
 
-let [<Fact>] ``bind-value in tail position must not leak outside the scope of its caller`` () =
+let [<Fact>] ``bind-value in tail position does not leak outside the scope of its caller`` () =
     (["f", makeUserFunction(["x"; "y"], [bindValueExpr ("result", funcCallExpr("+", [SymVal "x"; SymVal "y"]))])],
      funcCallExpr("f", [NumVal -2.0; NumVal 4.5]))
     .=>. (NumVal 2.5, ["result", StrVal "{NOT-SET}"])
+
+let [<Fact>] ``errors deep inside nested calls returns a nested error`` () =
+    funcCallExpr ("+", [
+        NumVal 2.0
+        funcCallExpr ("-", [
+            NumVal 2.0
+            funcCallExpr ("*", [
+                NumVal 2.0
+                funcCallExpr ("/", [
+                    NumVal 2.0
+                    funcCallExpr ("mod", [
+                        NumVal 2.0
+                        funcCallExpr ("eval", [
+                            quotedValue(funcCallExpr("+", [NumVal 2.0; StrVal "test"]))
+                        ]) ]) ]) ]) ]) ])
+    =/> ErrorEvaluatingFunction ("+",
+            ErrorEvaluatingFunction ("-",
+                ErrorEvaluatingFunction ("*",
+                    ErrorEvaluatingFunction("/",
+                        ErrorEvaluatingFunction("mod",
+                            ErrorEvaluatingFunction("eval",
+                                ErrorEvaluatingFunction("+",
+                                    ExpectedNumber (StringAtom "test"))))))))
+
+let [<Fact>] ``test case: complex expression`` () =
+    funcCallExpr ("[]", [
+        bindValueExpr ("surprise",
+            funcCallExpr ("if", [
+                NumVal 0.0
+                quotedValue (funcCallExpr ("+", [NumVal 2.0; NumVal 3.0]))
+                quotedValue (funcCallExpr ("-", [NumVal 3.0; NumVal 2.0]))
+            ]))
+        funcCallExpr ("eval", [SymVal "surprise"])
+    ])
+    => ExprVal [ExprVal [SymVal "-"; NumVal 3.0; NumVal 2.0]
+                NumVal 1.0]
 
 #if !DEBUG
 // as with the parser, stack overflow tests are only run in release config,
