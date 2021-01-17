@@ -13,6 +13,11 @@ let private ( <*> ) f x =
     | Error err, _ -> Error err
     | _, Error err -> Error err
 
+[<Literal>]
+let INVALID_FUNCTION_STACKTRACE = "[invalid function definition]"
+[<Literal>]
+let ANONYMOUS_FUNCTION_STACKTRACE = "[anonymous function expression]"
+
 type NativeFunc = Scope -> Value list -> Result<ValueDef * SideEffect list, EvalError>
 type NativeFuncMap = Map<string, NativeFunc>
 
@@ -33,11 +38,6 @@ let (|NativeFuncDef|UserFuncDef|InvalidFuncDef|) = function
                      ExprValueType paramNames
                      ExprValueType funcBody] -> UserFuncDef (paramNames, funcBody)
     | _ -> InvalidFuncDef
-
-
-let private expectFunctionIdentifier value =
-    expectSymbol value >>! fun _ -> { EvalError.Type = FunctionIdentifierMustBeSymbol value.Type
-                                      Position = value.Position }
 
 let private wrapFuncEvalError fname pos err =
     { EvalError.Type = ErrorEvaluatingFunction (fname, err)
@@ -175,8 +175,8 @@ let evaluateValue (nativeFuncs: NativeFuncMap)
         let getStackInfo = function
             | { Value.Type = StringAtom x; Position = y } -> x, y
             | { Value.Type = SymbolAtom x; Position = y } -> x, y
-            | { Value.Type = Expression _; Position = y } -> "[anonymous function expression]", y
-            | { Position = y } -> "[invalid function definition]", y
+            | { Value.Type = Expression _; Position = y } -> ANONYMOUS_FUNCTION_STACKTRACE, y
+            | { Position = y } -> INVALID_FUNCTION_STACKTRACE, y
         let mutable rv = terminalError
         for err in stackTrace do
             let (msg, pos) = getStackInfo err

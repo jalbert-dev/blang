@@ -115,6 +115,12 @@ let private bindFunction _ args =
         | (Immediate funcExpr, _) -> bindValue () [ args.[0]; funcExpr ]
         | _ -> failwith ""
 
+let private printValue _ args =
+    args |> expectArgList [ isAnyValue ]
+    <!> fun args ->
+        System.Console.WriteLine(Value.stringify args.[0])
+        Immediate Parser.unitValue, []
+
 let functionMap : Evaluator.NativeFuncMap =
     Map <| seq {
         yield "'", quote
@@ -123,6 +129,8 @@ let functionMap : Evaluator.NativeFuncMap =
         yield "make-function", makeFunction
         yield "bind-value", bindValue
         yield "bind-function", bindFunction
+
+        yield "print", printValue
         
         yield "<", wrapComparison ( < );
         yield "<=", wrapComparison ( <= );
