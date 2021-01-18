@@ -14,6 +14,13 @@ let private boolToResult err = function
     | true  -> Ok ()
     | false -> Error err
 
+[<Literal>]
+let private FLOAT_EQ_EPSILON = 0.0000001
+
+let private boolToNum x = Value.createAnon <| NumberAtom (if x then 1.0 else 0.0)
+let private trueValue = boolToNum true
+let private falseValue = boolToNum false
+
 let private isNumber x = expectNumber x <!> ignore
 let private isString x = expectString x <!> ignore
 let private isSymbol x = expectSymbol x <!> ignore
@@ -28,6 +35,8 @@ let private isHomogeneousList predicate err =
             h |> predicate >>! err >>= fun _ -> loop t
     expectExpression >=> loop
 let private isAnyValue _ = Ok ()
+
+let private immNoSideEffects = Immediate >> fun x -> x, []
 
 let private expectArgList typeCheckList args =
     let expectedLen = List.length typeCheckList
@@ -58,11 +67,10 @@ let private numberEquals _ (args: Value list) =
         isNumber
         isNumber ]
     <!> fun args ->
-            NumberAtom (if abs ((unwrapAtomNum args.[0]) - (unwrapAtomNum args.[1])) < 0.0000001  then
+            NumberAtom (if abs ((unwrapAtomNum args.[0]) - (unwrapAtomNum args.[1])) < FLOAT_EQ_EPSILON  then
                             1.0
                         else
                             0.0) |> Value.createAnon |> Immediate, []
-                    
 
 let private unwrapQuote = function
     | { Value.Type = Expression (h::t) } when h.Type = SymbolAtom "'" -> Ok (Expression t)
@@ -82,7 +90,7 @@ let private ifExpression _ args =
     args |> expectArgList [ isNumber; isAnyValue; isAnyValue ]
     <!> fun args ->
         let whichBranch =
-            if (unwrapAtomNum args.[0] > 0.0000001) then
+            if (unwrapAtomNum args.[0] > FLOAT_EQ_EPSILON) then
                 1
             else
                 2
@@ -118,8 +126,85 @@ let private bindFunction _ args =
 let private printValue _ args =
     args |> expectArgList [ isAnyValue ]
     <!> fun args ->
-        System.Console.WriteLine(Value.stringify args.[0])
-        Immediate Parser.unitValue, []
+            System.Console.WriteLine(Value.stringify args.[0])
+            Immediate Parser.unitValue, []
+
+let private listEmpty _ args =
+    args |> expectArgList [ isExpr ]
+    <!> fun args ->
+            Immediate (boolToNum(args.[0].Type = Parser.unitValue.Type)), []
+
+let private uIsUnit _ args =
+    args |> expectArgList [ isAnyValue ]
+    <!> fun args ->
+            Immediate (boolToNum(args.[0].Type = Parser.unitValue.Type)), []
+let private uIsNumber _ args =
+    args |> expectArgList [ isAnyValue ]
+    <!> fun args ->
+        match args.[0].Type with
+        | NumberAtom _ -> trueValue
+        | _ -> falseValue
+        |> immNoSideEffects
+let private uIsString _ args =
+    args |> expectArgList [ isAnyValue ]
+    <!> fun args ->
+        match args.[0].Type with
+        | StringAtom _ -> trueValue
+        | _ -> falseValue
+        |> immNoSideEffects
+let private uIsSymbol _ args =
+    args |> expectArgList [ isAnyValue ]
+    <!> fun args ->
+        match args.[0].Type with
+        | SymbolAtom _ -> trueValue
+        | _ -> falseValue
+        |> immNoSideEffects
+let private uIsExpr _ args =
+    args |> expectArgList [ isAnyValue ]
+    <!> fun args ->
+        match args.[0].Type with
+        | Expression _ -> trueValue
+        | _ -> falseValue
+        |> immNoSideEffects
+
+let private getType _ args =
+    args |> expectArgList [ isAnyValue ]
+    <!> fun args ->
+        match args.[0].Type with
+        | NumberAtom _ -> "number"
+        | StringAtom _ -> "string"
+        | SymbolAtom _ -> "symbol"
+        | Expression _ -> "list"
+        |> StringAtom |> Value.createAnon |> immNoSideEffects
+
+let private expectNonEmptyExpr err v =
+    match unwrapExpr v with
+    | [] -> Error { EvalError.Type = err
+                    Position = v.Position }
+    | value -> Ok value
+
+let private wrapNonEmptyListOp f err _ args =
+    args |> expectArgList [ isExpr ]
+    <!> List.head
+    >>= expectNonEmptyExpr err
+    <!> f
+
+let private listHead = 
+    wrapNonEmptyListOp
+        (List.head >> immNoSideEffects)
+        CannotTakeHeadOfEmptyList
+let private listTail =
+    wrapNonEmptyListOp
+        (List.tail >> Expression >> Value.createAnon >> immNoSideEffects)
+        CannotTakeTailOfEmptyList
+let private listCons _ args =
+    args |> expectArgList [ isAnyValue; isExpr ]
+    <!> fun args ->
+            args.[0] :: (unwrapExpr args.[1]) |> Expression |> Value.createAnon |> immNoSideEffects
+
+let private forceError _ args =
+    args |> expectArgList [ isAnyValue ]
+    >>= fun args -> Error { EvalError.Type = UserThrownError args.[0].Type; Position = None }
 
 let functionMap : Evaluator.NativeFuncMap =
     Map <| seq {
@@ -132,6 +217,7 @@ let functionMap : Evaluator.NativeFuncMap =
 
         yield "print", printValue
         
+        yield "=", numberEquals
         yield "<", wrapComparison ( < );
         yield "<=", wrapComparison ( <= );
         yield ">", wrapComparison ( > );
@@ -142,9 +228,22 @@ let functionMap : Evaluator.NativeFuncMap =
         yield "*", wrapBinaryOp ( * );
         yield "/", wrapBinaryOp ( / );
         yield "mod", wrapBinaryOp ( % );
-        yield "=", numberEquals
 
         yield "if", ifExpression
+
+        yield "is-unit", uIsUnit
+
+        yield "is-number", uIsNumber
+        yield "is-string", uIsString
+        yield "is-symbol", uIsSymbol
+        yield "is-list", uIsExpr
+
+        yield "list-empty", listEmpty
+        yield "list-head", listHead
+        yield "list-tail", listTail
+        yield "list-cons", listCons
+
+        yield "throw", forceError
     }
 
 let coreScope : Scope =
