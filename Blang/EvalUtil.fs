@@ -19,6 +19,10 @@ let unwrapAtomNum = function
     | { Value.Type = NumberAtom x } -> x
     | _ -> failwith "Type checking failure!"
 
+let unwrapExpr = function
+    | { Value.Type = Expression x } -> x
+    | _ -> failwith "Type checking failure!"
+
 let expectNumber (value: Value) =
     match value.Type with
     | NumberAtom x -> Ok x

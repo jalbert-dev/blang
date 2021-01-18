@@ -22,6 +22,10 @@ type EvalErrorType =
     | ErrorEvaluatingFunction of string * EvalError
     | InvalidFunctionDefinition of RuntimeTypes.ValueType
     | InvalidNativeFunctionName of string
+    | CannotTakeHeadOfEmptyList
+    | CannotTakeTailOfEmptyList
+
+    | UserThrownError of RuntimeTypes.ValueType
 and EvalError =
     { Type: EvalErrorType
       Position: RuntimeTypes.LineInfo option }
