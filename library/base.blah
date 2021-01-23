@@ -1,0 +1,126 @@
+(bind-value ':: list-cons)
+
+(bind-value 'true 1.0)
+(bind-value 'false 0.0)
+
+(bind-function 'eval-if '(__condition__ __trueVal__ __falseVal__) '(
+    (eval (if __condition__ __trueVal__ __falseVal__))
+))
+
+(bind-function 'cond '(__pairs__) '(
+    (bind-function '__cond_loop__ '(__pairs__) '(
+        (eval-if (list-empty __pairs__)
+            ()
+            '(eval-if (eval (list-head (list-head __pairs__)))
+                '(eval (list-head (list-tail (list-head __pairs__))))
+                '(__cond_loop__ (list-tail __pairs__)))
+        )
+    ))
+    (__cond_loop__ __pairs__)
+))
+
+(bind-function 'list-rev '(__to-rev-list__) '(
+	(bind-function '__rev_loop__ '(__to-rev-list__ __acc__) '(
+    	(eval-if (list-empty __to-rev-list__)
+        	      '__acc__
+        	      '(__rev_loop__ (list-tail __to-rev-list__) (:: (list-head __to-rev-list__) __acc__)))
+    ))
+    (__rev_loop__ __to-rev-list__ ())
+))
+
+(bind-function 'list-any '(__search_predicate __list-to-search__) '(
+    (bind-function '__any_loop__ '(__list-to-search__) '(
+    	(cond '(
+        	((list-empty __list-to-search__) false)
+            ((__search_predicate (list-head __list-to-search__)) true)
+            (true (__any_loop__ (list-tail __list-to-search__)))
+        ))
+    ))
+    (__any_loop__ __list-to-search__)
+))
+
+(bind-function 'list-map '(__mapf__ __list-to-map__) '(
+	(bind-function '__map-loop__ '(__list-to-map__ acc) '(
+    	(eval-if (list-empty __list-to-map__)
+        		   'acc
+                   '(__map-loop__ 
+                        (list-tail __list-to-map__)
+                        (:: (__mapf__ (list-head __list-to-map__)) acc)))
+    ))
+    (list-rev (__map-loop__ __list-to-map__ ()))
+))
+
+(bind-function '&& '(__and-a__ __and-b__) '(
+	(eval-if (eval __and-a__)
+        '(eval-if (eval __and-b__) 
+            true
+            false)
+        false)
+))
+
+(bind-function '__eval-if-bound '(___x) '(
+	(eval-if (is-bound ___x)
+    	      '(eval ___x)
+              '___x)
+))
+
+(bind-function '__quote-if-expression '(___x) '(
+	(eval-if (is-list ___x) '(:: '' ([] ___x)) '___x)
+))
+
+(bind-function '__close-symbol '(__symbol__ __captures__) '(
+    (cond '(
+	    ((&& '(is-symbol __symbol__)
+        	 '(list-any
+                (\l '(__capture-target) '(symbols-equal __capture-target __symbol__))
+                __captures__)) 
+        	(__quote-if-expression (__eval-if-bound __symbol__)))
+        ((is-list __symbol__) (__close-fbody __captures__ __symbol__))
+        (true __symbol__)
+    ))
+))
+
+(bind-function '__close-fbody '(__captures__ __fbody__) '(
+	(list-map 
+    	(\l '(__sym__) '(__close-symbol __sym__ __captures__))
+        __fbody__)
+))
+
+(bind-function 'make-lambda '(__lambda_args__ __lambda_body__) '(
+    (make-function __lambda_args__ ([] __lambda_body__))
+))
+(bind-function 'make-closure '(__closure_args__ __closure_captures__ __closure_body__) '(
+	(make-function __closure_args__ 
+    	([] (__close-fbody __closure_captures__ __closure_body__)))
+))
+
+(bind-function 'list-iter '(__iter-f__ __iter-list__) '(
+	(bind-value '__iter-loop__ (\c '(__iter-list__ _) '(__iter-f__)
+    	'(eval-if (list-empty __iter-list__)
+        		   ()
+                   '(__iter-loop__
+                        (list-tail __iter-list__)
+                        (__iter-f__ (list-head __iter-list__))))
+    ))
+    (__iter-loop__ __iter-list__ ())
+))
+
+(bind-function 'gen-iseq '(__lower_bound__ __upper_bound__) '(
+	(bind-value '__gen-loop__ (\c '(i acc) '(__lower_bound__)
+    	'(eval-if (< i __lower_bound__)
+        	      'acc
+                  '(__gen-loop__ (- i 1) (:: i acc)))
+    ))
+    (__gen-loop__ __upper_bound__ ())
+))
+
+(bind-function 'for-range '(__counter_name__ __lower_bound__ __upper_bound__) '(
+    
+))
+
+(bind-function ', '(__exprs__) '( (list-iter eval __exprs__) ))
+
+(bind-function '!= '(a b) '( (- 1 (= a b)) ))
+
+(bind-value '\l make-lambda)
+(bind-value '\c make-closure)
