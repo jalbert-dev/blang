@@ -1,0 +1,18 @@
+# A much more sensible iterative Fibonacci that uses tail recursion
+# to loop from i = 0 to n. Unlike the naive Fibonacci, this one stays
+# relatively snappy to any reasonable number of terms.
+
+(bind-function 'fib '(n) '(
+	(bind-function 'fib-loop '(prev acc i) '(
+    	(eval-if (>= i n)
+        	'prev
+            '(fib-loop acc (+ prev acc) (+ i 1))
+        )
+    ))
+    (fib-loop 0 1 0)
+))
+
+# ex: generate the 8th fibonacci number
+#  (fib 8)
+# ex: generate a list containing the first 10 fibonacci numbers
+#  (list-map fib (gen-iseq 0 10))
