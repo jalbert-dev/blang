@@ -1,0 +1,15 @@
+# With Blang and FizzBuzz, you're basically guaranteed to ace that interview.
+# Go get 'em
+
+(bind-function 'fizz-buzz '(x) '(
+  (cond '(
+      ((= 0 (mod x 15)) (print "FizzBuzz"))
+      ((= 0 (mod x 3)) (print "Fizz"))
+      ((= 0 (mod x 5)) (print "Buzz"))
+  ))
+))
+
+# ex: fizz-buzz the first 100 integers
+#  (list-iter fizz-buzz (gen-iseq 1 100))
+
+# By interview I meant for janitor, incidentally

@@ -1,9 +1,0 @@
-(bind-function 'fizz-buzz '(x) '(
-  (cond '(
-      ((= 0 (mod x 15)) (print "FizzBuzz"))
-      ((= 0 (mod x 3)) (print "Fizz"))
-      ((= 0 (mod x 5)) (print "Buzz"))
-  ))
-))
-
-(list-iter fizz-buzz (gen-iseq 1 100))
