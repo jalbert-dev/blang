@@ -72,6 +72,20 @@ let private numberEquals _ (args: Value list) =
                         else
                             0.0) |> Value.createAnon |> Immediate, []
 
+let private stringsEqual _ (args: Value list) =
+    args |> expectArgList [ isString; isString ]
+    <!> fun args ->
+            match args.[0].Type, args.[1].Type with
+            | StringAtom a, StringAtom b -> a = b |> boolToNum |> immNoSideEffects
+            | _ -> failwith ""
+
+let private symbolsEqual _ (args: Value list) =
+    args |> expectArgList [ isSymbol; isSymbol ]
+    <!> fun args ->
+            match args.[0].Type, args.[1].Type with
+            | SymbolAtom a, SymbolAtom b -> a = b |> boolToNum |> immNoSideEffects
+            | _ -> failwith ""
+
 let private unwrapQuote = function
     | { Value.Type = Expression (h::t) } when h.Type = SymbolAtom "'" -> Ok (Expression t)
     | _ -> Error { EvalError.Type = ExpectedValue; Position = None }
@@ -166,6 +180,13 @@ let private uIsExpr _ args =
         | Expression _ -> trueValue
         | _ -> falseValue
         |> immNoSideEffects
+let private uIsBound scope args =
+    args |> expectArgList [ isSymbol ]
+    <!> fun args ->
+        match args.[0].Type with
+        | SymbolAtom x -> scope.SymbolTable.ContainsKey x |> boolToNum
+        | _ -> falseValue
+        |> immNoSideEffects
 
 let private getType _ args =
     args |> expectArgList [ isAnyValue ]
@@ -218,6 +239,9 @@ let functionMap : Evaluator.NativeFuncMap =
         yield "print", printValue
         
         yield "=", numberEquals
+        yield "strings-equal", stringsEqual
+        yield "symbols-equal", symbolsEqual
+
         yield "<", wrapComparison ( < );
         yield "<=", wrapComparison ( <= );
         yield ">", wrapComparison ( > );
@@ -237,6 +261,8 @@ let functionMap : Evaluator.NativeFuncMap =
         yield "is-string", uIsString
         yield "is-symbol", uIsSymbol
         yield "is-list", uIsExpr
+
+        yield "is-bound", uIsBound
 
         yield "list-empty", listEmpty
         yield "list-head", listHead

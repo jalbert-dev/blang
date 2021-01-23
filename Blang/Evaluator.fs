@@ -99,7 +99,7 @@ let private prepareFuncCall nativeFuncLookup
         <*> evalArgs ()
     
     | UserFuncDef (paramNames, funcBody) ->
-        let ( <!!> ) f = Result.bind <| fun (a, b) -> Ok (f a b)
+        let ( <!!> ) f = (<!>) <| fun (a, b) -> (f a b)
 
         let bindArgsToNames args scope names =
             List.zip names args
@@ -124,7 +124,7 @@ let private prepareFuncCall nativeFuncLookup
             <*> evalScope ()
 
     | InvalidFuncDef -> Error ({ EvalError.Type = InvalidFunctionDefinition funcDef.Type
-                                 Position = None}, [])
+                                 Position = funcDef.Position }, stackTrace)
 
 /// Evaluates the given value within the given scope, and returns a Result
 /// containing either a tuple of the resulting value and a list of side effects,
@@ -142,6 +142,7 @@ let evaluateValue (nativeFuncs: NativeFuncMap)
         | Expression [] -> Ok (Parser.unitValue, [])
         | Expression (funcIdent::args) ->
             let stackTrace = funcIdent :: stackTrace
+            //stackTrace |> List.map Value.stringify |> String.concat ", " |> printfn "%s"
             let nativeFuncLookup x = lookupNativeFunc nativeFuncs value.Position x >>! (fun x -> x, stackTrace)
             let prepareFuncCall' = prepareFuncCall nativeFuncLookup (loop true) stackTrace
             let evaluateValueSingleWithSideEffects' = evaluateValueSingleWithSideEffects (loop true) stackTrace scope
