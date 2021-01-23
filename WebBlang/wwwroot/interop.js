@@ -9,6 +9,10 @@ function getMultilineScriptText() {
     return document.getElementById("editor-textarea").value;
 }
 
+function setMultilineScriptText(value) {
+    IDE.setValue(value);
+}
+
 function createIde() {
     IDE = CodeMirror.fromTextArea(
         document.getElementById("editor-textarea"),

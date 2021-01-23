@@ -88,8 +88,8 @@ let [<Fact>] ``symbol without corresponding bound value fails to evaluate`` () =
     SymVal "hello-i'm-invalid" =/> UnboundIdentifier "hello-i'm-invalid"
 
 let [<Fact>] ``first value in an expression must evaluate to a symbol`` () =
-    ExprVal [StrVal "nope!"] =/> InvalidFunctionDefinition (StringAtom "nope!")
-    ExprVal [NumVal 1.0] =/> InvalidFunctionDefinition (NumberAtom 1.0)
+    ExprVal [StrVal "nope!"] =/> ErrorEvaluatingFunction ("nope!", InvalidFunctionDefinition (StringAtom "nope!"))
+    ExprVal [NumVal 1.0] =/> ErrorEvaluatingFunction (Evaluator.INVALID_FUNCTION_STACKTRACE, InvalidFunctionDefinition (NumberAtom 1.0))
 
 let [<Fact>] ``test case: simple function invocation`` () =
     ExprVal [SymVal "+"; NumVal 1.0; NumVal 5.0] => NumVal 6.0

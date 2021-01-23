@@ -1,0 +1,15 @@
+# A naive recursive Fibonacci. Extremely inefficient, and likely to
+# hang the interpreter for values of `n` above 15 or so. Beware!
+
+(bind-function 'fib '(n) '(
+	(eval-if (< n 2)
+		'n
+		'(+ 
+			(fib (- n 1))
+			(fib (- n 2))))
+))
+
+# ex: generate the 8th fibonacci number
+#  (fib 8)
+# ex: generate a list containing the first 10 fibonacci numbers
+#  (list-map fib (gen-iseq 0 10))

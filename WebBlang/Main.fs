@@ -5,7 +5,11 @@ open Bolero
 open Bolero.Html
 open Bolero.Templating.Client
 
+open Microsoft.AspNetCore.Components
+open Microsoft.AspNetCore.Components.WebAssembly.Hosting
+
 open Microsoft.JSInterop
+open System.Net.Http
 open Bolero.Remoting.Client
 
 open Blang
@@ -28,20 +32,16 @@ type Model =
         EvalEntryValue: string
 
         ReplState: RuntimeTypes.Scope
-    }
 
-let initModel =
-    {
-        Output = []
-        History = []
-        CurrentHistory = -1
-        EvalEntryValue = ""
-        ReplState = RuntimeCore.coreScope
+        Modules: (string * string) array
+        SelectedModuleKey: string
     }
 
 type Message =
     // data setters
     | SetEvalEntryField of string
+    | SetModules of Option<(string * string) array>
+    | SetSelectedModuleKey of string
 
     // actions
     | EvalImmediate
@@ -50,6 +50,81 @@ type Message =
     | ClearLog
     | HistoryBackward
     | HistoryForward
+    | LoadSelectedModule
+
+    // Cmd.OfJS appears to force you to chain into another command when invoking JS, so...
+    | Noop
+
+let downloadModule (http: HttpClient) (modulePath: string) =
+    async {
+        try
+            let! moduleText = http.GetStringAsync(modulePath) |> Async.AwaitTask
+            return Ok (modulePath, moduleText)
+        with
+        | ex ->
+            return Error (modulePath, ex)
+
+    }
+
+let downloadModuleList (http: HttpClient) =
+    async {
+        printfn "Downloading module list..."
+
+        try
+            let! moduleList = http.GetStringAsync("generated/module-list.txt") |> Async.AwaitTask
+            let modulePaths = Seq.filter (not << System.String.IsNullOrEmpty) <| moduleList.Split('\n')
+            printfn "Modules to download: %A" modulePaths
+
+            let! moduleContents = Seq.map (downloadModule http) modulePaths
+                                  |> Async.Parallel
+
+            let loadedModules = moduleContents
+                                |> Seq.choose (function | Ok x -> Some x | _ -> None)
+                                |> Seq.sortBy (fun (path, _) -> path)
+            let failedModules = moduleContents
+                                |> Seq.choose (function | Error x -> Some x | _ -> None)
+                                |> Seq.sortBy (fun (path, _) -> path)
+
+            printfn "LOADED MODULES:"
+            for (loadedPath, _) in loadedModules do
+                printfn " -- %s" loadedPath
+            printfn "FAILED MODULES:"
+            for (failedPath, ex) in failedModules do
+                printfn " -- %s (%s)" failedPath ex.Message
+
+            return loadedModules |> Array.ofSeq |> Some |> SetModules
+        with
+        | ex ->
+            printfn "EXCEPTION DOWNLOADING MODULE LIST: %A" ex
+            return SetModules <| None
+
+    }
+
+let invokeJsCreateIde (js: IJSRuntime) =
+    async {
+        printfn "Creating CodeMirror IDE..."
+        let! _ = js.InvokeAsync("createIde", [| |]).AsTask() |> Async.AwaitTask
+        return ()
+    }
+
+let initEnvironmentAsync http js =
+    async {
+        let! modulesCmd = downloadModuleList http
+        do! invokeJsCreateIde js
+
+        return modulesCmd
+    }
+
+let init http (program: ProgramComponent<Model, Message>) =
+    {
+        Output = []
+        History = []
+        CurrentHistory = -1
+        EvalEntryValue = ""
+        ReplState = RuntimeCore.coreScope
+        Modules = [||]
+        SelectedModuleKey = ""
+    }, Cmd.OfAsyncImmediate.result (initEnvironmentAsync http program.JSRuntime)
 
 let private ( >>= ) a b = Result.bind b a
 let private ( <!> ) a b = Result.map b a
@@ -91,8 +166,29 @@ let setHistoryPosition pos model =
 
 let update (js: IJSRuntime) message model =
     match message with
+    | Noop -> model, []
+
     | SetEvalEntryField str ->
         { model with EvalEntryValue = str }, []
+
+    | SetModules x ->
+        match x with
+        | Some moduleMap -> 
+            let (firstPath, _) = Array.head moduleMap
+            { model with Modules = moduleMap
+                         SelectedModuleKey = firstPath }, []
+        | None ->
+            printfn "FAILED TO DOWNLOAD MODULES"
+            { model with Output = model.Output @ [LogError <| "Failed to download sample modules!"]}, []
+
+    | SetSelectedModuleKey str ->
+        { model with SelectedModuleKey = str }, []
+
+    | LoadSelectedModule ->
+        let findSelectedModule (k, v) = if k = model.SelectedModuleKey then Some v else None
+        match model.Modules |> Array.tryPick findSelectedModule with
+        | Some moduleText -> model, Cmd.OfJS.perform js "setMultilineScriptText" [| moduleText |] (fun _ -> Noop)
+        | None -> printfn "UNABLE TO LOCATE MODULE TEXT FOR PATH '%s'" model.SelectedModuleKey; model, []
 
     | EvalImmediate ->
         if model.EvalEntryValue.Length > 0 then
@@ -160,10 +256,10 @@ let view model dispatch =
             div [attr.``class`` "field has-addons m-0 p-0 is-fullwidth"] [
                 p [attr.``class`` "control is-expanded"] [
                     div [attr.``class`` "select is-fullwidth sensible-font-size"] [
-                        select [attr.``id`` "file-select-box"] [
-                            option [] [text "test.blah"]
-                            option [] [text "another.blah"]
-                            option [] [text "fib.blah"]
+                        select [attr.``id`` "file-select-box"
+                                bind.change.string model.SelectedModuleKey (dispatch << SetSelectedModuleKey)] [
+                            forEach model.Modules <| fun (path, _) ->
+                                option [] [text path]
                         ]
                     ]
                 ]
@@ -171,6 +267,7 @@ let view model dispatch =
                     button [
                         attr.``id`` "load-file-button"
                         attr.``class`` "button is-outlined is-dark sensible-font-size"
+                        on.click <| fun _ -> dispatch LoadSelectedModule
                     ] [text "Load"]
                 ]
             ]
@@ -235,21 +332,14 @@ let view model dispatch =
         ]
     ]
 
-open System.Threading.Tasks
-
 type MyApp() =
     inherit ProgramComponent<Model, Message>()
 
+    [<Inject>]
+    member val HostEnv = Unchecked.defaultof<IWebAssemblyHostEnvironment> with get, set
 
     override this.Program =
-        Program.mkProgram (fun _ -> initModel, []) (update this.JSRuntime) view
-    
-    override this.OnAfterRenderAsync (firstRender: bool) =
-        let js = this.JSRuntime
-        async {
-            if firstRender then
-                let! _ = js.InvokeAsync("createIde", [| |]).AsTask() |> Async.AwaitTask
-                return ()
-            else
-                return ()
-        } |> Async.StartAsTask :> Task
+        let httpClient = new HttpClient()
+        httpClient.BaseAddress <- System.Uri(this.HostEnv.BaseAddress)
+        printfn "Base address: %A" httpClient.BaseAddress
+        Program.mkProgram (init httpClient) (update this.JSRuntime) view

@@ -16,6 +16,12 @@ jobs:
 
                         - name: Build and publish
                           run: dotnet publish ${GITHUB_WORKSPACE}/WebBlang/WebBlang.fsproj -c Release -o build
+                        
+                        - name: Remove old listing (shouldn't exist but may as well)
+                          run: rm -rf module-list.txt build/wwwroot/generated
+                        
+                        - name: Compile samples for Web Blang
+                          run: ./prep-web-samples.sh build/wwwroot
 
                         - name: Deploy to Pages
                           uses: JamesIves/github-pages-deploy-action@3.7.1
